@@ -420,7 +420,7 @@
                     <p id="total-deductions" class="text-3xl font-bold text-red-700">$ 0.00</p>
                 </div>
                 <!-- Re-added deductionChartDiv here -->
-                <div class="bg-gray-50 p-4 rounded-lg shadow-sm text-center mt-4 min-h-[200px] flex items-center justify-center relative">
+                <div class="bg-gray-50 p-4 rounded-lg shadow-sm text-center mt-4 max-h-[300px] flex items-center justify-center relative">
                     <canvas id="deduction-chart-canvas"></canvas>
                     <div id="deduction-no-data-message" class="absolute text-gray-500 hidden">
                         No deduction data for this week.
@@ -474,7 +474,8 @@
                 console.log("Firebase config loaded from Canvas environment.");
             } catch (e) {
                 console.error("Error parsing __firebase_config from Canvas:", e);
-                showStatusMessage("Critical Error: Failed to parse Firebase configuration from Canvas. Please ensure Firebase is correctly set up in Canvas.", true);
+                // Call showStatusMessage only after statusMessageDiv and statusTextP are initialized
+                // showStatusMessage("Critical Error: Failed to parse Firebase configuration from Canvas. Please ensure Firebase is correctly set up in Canvas.", true);
             }
         } else {
             console.warn("Firebase config (__firebase_config) not found in Canvas environment. If running locally, please provide firebaseConfig manually.");
@@ -491,7 +492,8 @@
             };
             app_id = firebaseConfig.projectId; // Use projectId as app_id for local testing
 
-            showStatusMessage("Firebase configuration not found. If running locally, please update the code with your Firebase project details.", true);
+            // Call showStatusMessage only after statusMessageDiv and statusTextP are initialized
+            // showStatusMessage("Firebase configuration not found. If running locally, please update the code with your Firebase project details.", true);
         }
 
 
@@ -503,8 +505,9 @@
         let statusTextP;
 
         function showStatusMessage(message, isError = false) {
+            // Ensure elements are initialized before attempting to access them
             if (!statusTextP || !statusMessageDiv) {
-                console.error("Status message elements not found. This should not happen after initializeDashboard.");
+                console.error("Status message elements not found. This should not happen after initializeDashboard has run.");
                 return;
             }
             statusTextP.textContent = message;
@@ -564,7 +567,7 @@
                 if (!firebaseConfig || !firebaseConfig.apiKey) {
                     const errorMessage = "Firebase configuration is missing or invalid. Please ensure Firebase is enabled in the Canvas environment settings or provided manually for local execution.";
                     console.error("[initializeFirebaseAndAuth] " + errorMessage);
-                    showStatusMessage("Critical Error: " + errorMessage, true);
+                    showStatusMessage("Critical Error: " + errorMessage, true); // Now safe to call
                     setFormEnabled(false);
                     return false; // Indicate failure
                 }
@@ -709,15 +712,29 @@
                 throw new Error("Authentication not complete. Cannot add data.");
             }
             try {
-                // Firestore automatically generates an ID if you use addDoc
-                const docRef = await firebase.addDoc(getUserCollectionRef(storeName), {
-                    ...item,
-                    // Convert Date objects to Firestore Timestamps for storage
-                    date: item.date instanceof Date ? firebase.Timestamp.fromDate(item.date) : item.date,
-                    deadline: item.deadline instanceof Date ? firebase.Timestamp.fromDate(item.deadline) : item.deadline,
-                    createdAt: item.createdAt instanceof Date ? firebase.Timestamp.fromDate(item.createdAt) : item.createdAt
-                });
-                // Return the item with the new Firestore ID
+                const itemToStore = { ...item }; // Start with all item properties
+
+                // Conditionally convert Date objects to Firestore Timestamps and remove if undefined
+                if (itemToStore.date instanceof Date) {
+                    itemToStore.date = firebase.Timestamp.fromDate(itemToStore.date);
+                } else if (itemToStore.hasOwnProperty('date') && itemToStore.date === undefined) {
+                    delete itemToStore.date; // Remove undefined date property
+                }
+
+                if (itemToStore.deadline instanceof Date) {
+                    itemToStore.deadline = firebase.Timestamp.fromDate(itemToStore.deadline);
+                } else if (itemToStore.hasOwnProperty('deadline') && itemToStore.deadline === undefined) {
+                    delete itemToStore.deadline; // Remove undefined deadline property
+                }
+
+                if (itemToStore.createdAt instanceof Date) {
+                    itemToStore.createdAt = firebase.Timestamp.fromDate(itemToStore.createdAt);
+                } else if (itemToStore.hasOwnProperty('createdAt') && itemToStore.createdAt === undefined) {
+                    delete itemToStore.createdAt; // Remove undefined createdAt property
+                }
+
+                const docRef = await firebase.addDoc(getUserCollectionRef(storeName), itemToStore);
+                // Return the item with the new Firestore ID, ensuring original date types are kept for local state
                 return { ...item, id: docRef.id };
             } catch (error) {
                 console.error(`Error adding item to Firestore collection ${storeName}:`, error);
@@ -733,20 +750,35 @@
             }
             try {
                 const docRef = firebase.doc(getUserCollectionRef(storeName), id);
-                // Convert Date objects to Firestore Timestamps for storage
                 const updatesToStore = { ...updates };
-                if (updatesToStore.date instanceof Date) updatesToStore.date = firebase.Timestamp.fromDate(updatesToStore.date);
-                if (updatesToStore.deadline instanceof Date) updatesToStore.deadline = firebase.Timestamp.fromDate(updatesToStore.deadline);
-                if (updatesToStore.createdAt instanceof Date) updatesToStore.createdAt = firebase.Timestamp.fromDate(updatesToStore.createdAt);
+
+                // Conditionally convert Date objects to Firestore Timestamps and remove if undefined
+                if (updatesToStore.date instanceof Date) {
+                    updatesToStore.date = firebase.Timestamp.fromDate(updatesToStore.date);
+                } else if (updatesToStore.hasOwnProperty('date') && updatesToStore.date === undefined) {
+                    delete updatesToStore.date;
+                }
+
+                if (updatesToStore.deadline instanceof Date) {
+                    updatesToStore.deadline = firebase.Timestamp.fromDate(updatesToStore.deadline);
+                } else if (updatesToStore.hasOwnProperty('deadline') && updatesToStore.deadline === undefined) {
+                    delete updatesToStore.deadline;
+                }
+
+                if (updatesToStore.createdAt instanceof Date) {
+                    updatesToStore.createdAt = firebase.Timestamp.fromDate(updatesToStore.createdAt);
+                } else if (updatesToStore.hasOwnProperty('createdAt') && updatesToStore.createdAt === undefined) {
+                    delete updatesToStore.createdAt;
+                }
 
                 await firebase.updateDoc(docRef, updatesToStore);
-                // No direct return of updated item from updateDoc, onSnapshot will handle refresh
                 return true;
             } catch (error) {
                 console.error(`Error updating item in Firestore collection ${storeName}, ID ${id}:`, error);
                 throw error;
             }
         };
+
 
         const deleteItem = async (storeName, id) => {
             console.log(`[deleteItem] Attempting to delete item from Firestore collection: ${storeName}, ID: ${id}`);
@@ -1215,7 +1247,7 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false,
+                        maintainAspectRatio: false, // Set to false for better size control within the container
                         plugins: {
                             legend: {
                                 position: 'right',
@@ -1581,6 +1613,10 @@
         window.onload = async () => {
             console.log("[window.onload] Event fired.");
 
+            // Initialize status message elements immediately
+            statusMessageDiv = document.getElementById('status-message');
+            statusTextP = document.getElementById('status-text');
+
             const MAX_RETRIES = 20;
             let retries = 0;
             const RETRY_DELAY_MS = 50;
@@ -1614,10 +1650,8 @@
             };
 
             const initializeDashboard = async () => {
-                console.log("[initializeDashboard] Initializing DOM elements and dashboard...");
-                statusMessageDiv = document.getElementById('status-message');
-                statusTextP = document.getElementById('status-text');
-
+                console.log("[initializeDashboard] Initializing remaining DOM elements and dashboard...");
+                
                 projectNameInput = document.getElementById('project-name');
                 contractAmountInput = document.getElementById('contract-amount');
                 projectDeadlineInput = document.getElementById('project-deadline');
