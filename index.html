@@ -248,7 +248,7 @@
                             <div id="monthly-payments-no-data-message" class="absolute text-gray-500 hidden">
                                 No payment data for the last 4 weeks.
                             </div>
-                            <p class="text-sm text-gray-600 mt-2">Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span></p>
+                            <p class="text-sm text-gray-600 mt-7">Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span></p>
                         </div>
                     </div>
                 </div>
@@ -1496,7 +1496,7 @@
             geminiAnalysisText.textContent = 'Generating insights...';
             getInsightsBtn.disabled = true;
 
-            const apiKey = ""; // Canvas will automatically provide this at runtime
+            const apiKey = "AIzaSyDpHZhUY87R6ZMm6H-QRRSMXKae8_-Nti0"; // Canvas will automatically provide this at runtime
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
