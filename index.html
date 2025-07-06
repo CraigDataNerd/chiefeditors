@@ -147,6 +147,16 @@
             text-align: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
+
+        /* Auth Modal Specific Styles */
+        #auth-modal-overlay {
+            background-color: rgba(0, 0, 0, 0.8); /* Darker background for auth modal */
+            z-index: 1001; /* Higher z-index to be on top of other modals */
+        }
+        #auth-modal-content {
+            max-width: 450px; /* Slightly smaller for auth */
+            text-align: center;
+        }
     </style>
 
     <!-- date-fns for date manipulation -->
@@ -159,7 +169,17 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged,
+            signInWithEmailAndPassword, // Added for email/password sign-in
+            createUserWithEmailAndPassword, // Added for email/password sign-up
+            GoogleAuthProvider, // Added for Google Sign-In
+            signInWithPopup, // Added for Google Sign-In
+            signOut // Added for sign out
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Import Timestamp
 
@@ -170,6 +190,11 @@
             signInAnonymously,
             signInWithCustomToken,
             onAuthStateChanged,
+            signInWithEmailAndPassword, // Expose
+            createUserWithEmailAndPassword, // Expose
+            GoogleAuthProvider, // Expose
+            signInWithPopup, // Expose
+            signOut, // Expose
             getFirestore,
             collection,
             getDocs,
@@ -194,15 +219,21 @@
                         class="h-12 w-auto ml-3 rounded-full">
                     <span id="user-id-display" class="ml-4 text-sm font-medium text-gray-700 hidden"></span>
                 </div>
-                <!-- AI Insights Button with Notification Badge -->
-                <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
-                    AI Insights
-                    <span id="notification-badge" class="notification-badge hidden">0</span>
-                </button>
+                <div class="flex items-center space-x-4">
+                    <!-- AI Insights Button with Notification Badge -->
+                    <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                        AI Insights
+                        <span id="notification-badge" class="notification-badge hidden">0</span>
+                    </button>
+                    <!-- Sign Out Button -->
+                    <button id="sign-out-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden">
+                        Sign Out
+                    </button>
+                </div>
             </div>
         </header>
 
-        <main class="container mx-auto p-6 mt-8">
+        <main id="dashboard-content" class="container mx-auto p-6 mt-8 hidden"> <!-- Main content initially hidden -->
             <!-- Loading/Error Message -->
             <div id="status-message" class="hidden flex items-center justify-center min-h-[100px] bg-red-100 text-red-700 p-4 rounded-lg mb-6">
                 <p id="status-text"></p>
@@ -251,12 +282,13 @@
                                     No payment data for the last 4 weeks.
                                 </div>
                             </div>
-                        
+
                             <!-- Total text -->
                             <p class="text-sm text-gray-600 mt-2 text-center">
                                 Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span>
                             </p>
                         </div>
+
                     </div>
                 </div>
             </section>
@@ -437,6 +469,42 @@
         </main>
     </div>
 
+    <!-- Authentication Modal -->
+    <div id="auth-modal-overlay" class="modal-overlay show">
+        <div id="auth-modal-content" class="modal-content p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Sign In / Sign Up</h2>
+            <div class="mb-4">
+                <label for="auth-email" class="sr-only">Email</label>
+                <input type="email" id="auth-email" placeholder="Email" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+            </div>
+            <div class="mb-6">
+                <label for="auth-password" class="sr-only">Password</label>
+                <input type="password" id="auth-password" placeholder="Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+            </div>
+            <div id="auth-error-message" class="text-red-600 text-sm mb-4 hidden"></div>
+
+            <button id="auth-sign-in-email-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-3">
+                Sign In with Email
+            </button>
+            <button id="auth-sign-up-email-btn" class="bg-green-600 hover:bg-green-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-6">
+                Sign Up with Email
+            </button>
+
+            <div class="relative flex py-5 items-center">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <span class="flex-shrink mx-4 text-gray-500">OR</span>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+
+            <button id="auth-google-sign-in-btn" class="bg-red-600 hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full flex items-center justify-center">
+                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.26H12v4.51h6.59c-.29 1.59-1.12 2.96-2.43 3.84v2.8h3.69c2.16-2 3.42-4.93 3.42-8.9zm-10.56 8.75c-2.92 0-5.38-1.95-6.28-4.57L2.4 13.7v-2.8l3.88-3.03c.9-2.62 3.36-4.57 6.28-4.57 3.51 0 6.48 1.25 8.64 3.39l-3.21 2.5c-1.18-.73-2.67-1.15-4.43-1.15-2.73 0-5.07 1.84-5.91 4.31H1.5v2.8h4.59c.84 2.47 3.18 4.31 5.91 4.31z"/>
+                </svg>
+                Sign In with Google
+            </button>
+        </div>
+    </div>
+
     <!-- Gemini AI Insights Modal -->
     <div id="gemini-modal-overlay" class="modal-overlay">
         <div class="modal-content">
@@ -593,28 +661,26 @@
                             userIdDisplay.textContent = `User ID: ${userId}`;
                             userIdDisplay.classList.remove('hidden');
                         }
+                        // Hide auth modal and show dashboard
+                        authModalOverlay.classList.remove('show');
+                        dashboardContent.classList.remove('hidden');
+                        signOutBtn.classList.remove('hidden');
+
                         // Now that we have a userId, set up real-time listeners
                         setupFirestoreListeners();
                         setFormEnabled(true);
                         showStatusMessage('Dashboard loaded and ready!', false);
                     } else {
-                        console.log("[onAuthStateChanged] No user signed in. Attempting anonymous sign-in.");
-                        try {
-                            // __initial_auth_token is provided by Canvas. If running locally, it will be undefined.
-                            // In that case, we fall back to anonymous sign-in.
-                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                            if (initialAuthToken) {
-                                await firebase.signInWithCustomToken(firebaseAuth, initialAuthToken);
-                                console.log("[signInWithCustomToken] Signed in with custom token.");
-                            } else {
-                                await firebase.signInAnonymously(firebaseAuth);
-                                console.log("[signInAnonymously] Signed in anonymously.");
-                            }
-                        } catch (error) {
-                            console.error("Firebase authentication error:", error);
-                            showStatusMessage(`Authentication failed: ${error.message}. Please refresh.`, true);
-                            setFormEnabled(false);
-                        }
+                        console.log("[onAuthStateChanged] No user signed in. Showing authentication modal.");
+                        userId = null; // Ensure userId is null if no user
+                        // Show auth modal and hide dashboard
+                        authModalOverlay.classList.add('show');
+                        dashboardContent.classList.add('hidden');
+                        signOutBtn.classList.add('hidden');
+                        setFormEnabled(false); // Disable forms until authenticated
+                        // Clear any previous listeners if the user somehow signed out
+                        unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+                        unsubscribeListeners = [];
                     }
                 });
                 return true; // Indicate success
@@ -685,7 +751,8 @@
         let deductionNoDataMessage; // New: No data message for deduction chart
 
         let userIdDisplay; // New: Element to display user ID
-
+        let dashboardContent; // Main dashboard content div
+        let signOutBtn; // Sign Out button
 
         // Gemini Modal Elements
         let aiInsightsBtn;
@@ -696,6 +763,15 @@
         let geminiLoadingSpinner;
         let geminiAnalysisText;
         let getInsightsBtn;
+
+        // Auth Modal Elements
+        let authModalOverlay;
+        let authEmailInput;
+        let authPasswordInput;
+        let authSignInEmailBtn;
+        let authSignUpEmailBtn;
+        let authGoogleSignInBtn;
+        let authErrorMessage;
 
 
         // --- Firestore Operations ---
@@ -1503,7 +1579,7 @@
             geminiAnalysisText.textContent = 'Generating insights...';
             getInsightsBtn.disabled = true;
 
-            const apiKey = "AIzaSyDpHZhUY87R6ZMm6H-QRRSMXKae8_-Nti0"; // Canvas will automatically provide this at runtime
+            const apiKey = ""; // Canvas will automatically provide this at runtime
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
@@ -1706,6 +1782,8 @@
                 deductionNoDataMessage = document.getElementById('deduction-no-data-message'); // Get the new message
 
                 userIdDisplay = document.getElementById('user-id-display'); // Get the new user ID display element
+                dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
+                signOutBtn = document.getElementById('sign-out-btn'); // Get the sign out button
 
                 aiInsightsBtn = document.getElementById('ai-insights-btn');
                 notificationBadge = document.getElementById('notification-badge');
@@ -1715,6 +1793,16 @@
                 geminiLoadingSpinner = document.getElementById('gemini-loading-spinner');
                 geminiAnalysisText = document.getElementById('gemini-analysis-text');
                 getInsightsBtn = document.getElementById('get-insights-btn');
+
+                // Auth Modal Elements
+                authModalOverlay = document.getElementById('auth-modal-overlay');
+                authEmailInput = document.getElementById('auth-email');
+                authPasswordInput = document.getElementById('auth-password');
+                authSignInEmailBtn = document.getElementById('auth-sign-in-email-btn');
+                authSignUpEmailBtn = document.getElementById('auth-sign-up-email-btn');
+                authGoogleSignInBtn = document.getElementById('auth-google-sign-in-btn');
+                authErrorMessage = document.getElementById('auth-error-message');
+
 
                 if (prevWeekBtn) prevWeekBtn.addEventListener('click', () => { currentWeekStart = subWeeks(currentWeekStart, 1); renderWeeklySummary(); });
                 if (nextWeekBtn) nextWeekBtn.addEventListener('click', () => { currentWeekStart = addWeeks(currentWeekStart, 1); renderWeeklySummary(); });
@@ -1964,6 +2052,74 @@
                     getInsightsBtn.addEventListener('click', generateGeminiAnalysis);
                 }
 
+                // --- Authentication Event Listeners ---
+                if (authSignInEmailBtn) {
+                    authSignInEmailBtn.addEventListener('click', async () => {
+                        const email = authEmailInput.value;
+                        const password = authPasswordInput.value;
+                        authErrorMessage.classList.add('hidden');
+                        try {
+                            await firebase.signInWithEmailAndPassword(firebaseAuth, email, password);
+                            showStatusMessage('Signed in successfully!', false);
+                            // UI update handled by onAuthStateChanged
+                        } catch (error) {
+                            authErrorMessage.textContent = `Sign-in failed: ${error.message}`;
+                            authErrorMessage.classList.remove('hidden');
+                            console.error('Email sign-in error:', error);
+                            showStatusMessage('Sign-in failed.', true);
+                        }
+                    });
+                }
+
+                if (authSignUpEmailBtn) {
+                    authSignUpEmailBtn.addEventListener('click', async () => {
+                        const email = authEmailInput.value;
+                        const password = authPasswordInput.value;
+                        authErrorMessage.classList.add('hidden');
+                        try {
+                            await firebase.createUserWithEmailAndPassword(firebaseAuth, email, password);
+                            showStatusMessage('Account created and signed in successfully!', false);
+                            // UI update handled by onAuthStateChanged
+                        } catch (error) {
+                            authErrorMessage.textContent = `Sign-up failed: ${error.message}`;
+                            authErrorMessage.classList.remove('hidden');
+                            console.error('Email sign-up error:', error);
+                            showStatusMessage('Sign-up failed.', true);
+                        }
+                    });
+                }
+
+                if (authGoogleSignInBtn) {
+                    authGoogleSignInBtn.addEventListener('click', async () => {
+                        authErrorMessage.classList.add('hidden');
+                        try {
+                            const provider = new firebase.GoogleAuthProvider();
+                            await firebase.signInWithPopup(firebaseAuth, provider);
+                            showStatusMessage('Signed in with Google successfully!', false);
+                            // UI update handled by onAuthStateChanged
+                        } catch (error) {
+                            authErrorMessage.textContent = `Google sign-in failed: ${error.message}`;
+                            authErrorMessage.classList.remove('hidden');
+                            console.error('Google sign-in error:', error);
+                            showStatusMessage('Google sign-in failed.', true);
+                        }
+                    });
+                }
+
+                if (signOutBtn) {
+                    signOutBtn.addEventListener('click', async () => {
+                        try {
+                            await firebase.signOut(firebaseAuth);
+                            showStatusMessage('Signed out successfully!', false);
+                            // UI update handled by onAuthStateChanged
+                        } catch (error) {
+                            showStatusMessage('Failed to sign out.', true);
+                            console.error('Sign out error:', error);
+                        }
+                    });
+                }
+
+
                 // Initial dashboard setup now relies on Firebase Auth state changing
                 currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
 
@@ -1973,12 +2129,8 @@
                 if (projectDeadlineInput) projectDeadlineInput.value = format(addWeeks(new Date(), 1), 'yyyy-MM-dd');
 
                 // Start Firebase initialization and authentication process
-                const firebaseInitialized = await initializeFirebaseAndAuth();
-                if (firebaseInitialized) {
-                    // Initial form state is disabled until auth is ready and data loaded via listeners
-                    setFormEnabled(false);
-                    showStatusMessage('Initializing dashboard...', false);
-                }
+                // The onAuthStateChanged listener will handle showing/hiding the dashboard/auth modal
+                await initializeFirebaseAndAuth();
             };
 
             checkDateFnsReady();
