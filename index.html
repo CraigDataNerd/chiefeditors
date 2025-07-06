@@ -341,6 +341,17 @@
                 </div>
             </section>
 
+            <!-- Project Status Summary Section (New) -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Project Status Summary</h2>
+                <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex items-center justify-center relative">
+                    <canvas id="project-status-chart"></canvas>
+                    <div id="project-status-no-data-message" class="absolute text-gray-500 hidden">
+                        No project data to display status.
+                    </div>
+                </div>
+            </section>
+
             <!-- Time Tracking Section -->
             <section class="bg-white p-6 rounded-xl shadow-md mb-6">
                 <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Time Tracking</h2>
@@ -702,6 +713,7 @@
         let dailyHoursChartInstance = null;
         let monthlyPaymentsChartInstance = null;
         let deductionChartInstance = null; // New: Chart instance for deductions
+        let projectStatusChartInstance = null; // New: Chart instance for project status
 
         // --- DOM Elements ---
         let projectNameInput;
@@ -749,6 +761,9 @@
 
         let deductionChartCanvas; // New: Canvas for deduction chart
         let deductionNoDataMessage; // New: No data message for deduction chart
+
+        let projectStatusChartCanvas; // New: Canvas for project status chart
+        let projectStatusNoDataMessage; // New: No data message for project status chart
 
         let userIdDisplay; // New: Element to display user ID
         let dashboardContent; // Main dashboard content div
@@ -941,6 +956,7 @@
                     }
                 });
             });
+            renderProjectStatusChart(); // Call this to update the chart when projects change
         };
 
         const renderTimeEntries = () => {
@@ -1360,6 +1376,89 @@
             }
         };
 
+        // New function to render the project status chart
+        const renderProjectStatusChart = () => {
+            if (!projectStatusChartCanvas) { console.error("projectStatusChartCanvas is null in renderProjectStatusChart"); return; }
+
+            const statusCounts = {
+                'In Progress': 0,
+                'Completed': 0,
+                'On Hold': 0,
+                'Archived': 0
+            };
+
+            projects.forEach(project => {
+                if (statusCounts.hasOwnProperty(project.status)) {
+                    statusCounts[project.status]++;
+                }
+            });
+
+            const chartLabels = Object.keys(statusCounts);
+            const chartData = Object.values(statusCounts);
+
+            if (projectStatusChartInstance) {
+                projectStatusChartInstance.destroy();
+            }
+
+            if (projects.length > 0) {
+                projectStatusChartCanvas.style.display = 'block';
+                projectStatusNoDataMessage.classList.add('hidden');
+
+                projectStatusChartInstance = new Chart(projectStatusChartCanvas, {
+                    type: 'pie',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Project Status',
+                            data: chartData,
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.6)', // Blue for In Progress
+                                'rgba(75, 192, 192, 0.6)', // Green for Completed
+                                'rgba(255, 206, 86, 0.6)', // Yellow for On Hold
+                                'rgba(153, 102, 255, 0.6)'  // Purple for Archived
+                            ],
+                            borderColor: [
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(153, 102, 255, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += context.raw;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                if (projectStatusChartInstance) {
+                    projectStatusChartInstance.destroy();
+                    projectStatusChartInstance = null;
+                }
+                projectStatusChartCanvas.style.display = 'none';
+                projectStatusNoDataMessage.classList.remove('hidden');
+            }
+        };
+
+
         const updateNotificationBadge = () => {
             const today = new Date();
             const approachingDeadlines = projects.filter(project =>
@@ -1407,6 +1506,7 @@
                 populateProjectSelects();
                 updateNotificationBadge();
                 renderWeeklySummary(); // Re-render summary as projects affect it
+                renderProjectStatusChart(); // Call the new chart render function
                 showStatusMessage('Projects updated in real-time!', false);
             }, (error) => {
                 console.error("Error listening to projects:", error);
@@ -1780,6 +1880,9 @@
 
                 deductionChartCanvas = document.getElementById('deduction-chart-canvas'); // Get the new canvas
                 deductionNoDataMessage = document.getElementById('deduction-no-data-message'); // Get the new message
+
+                projectStatusChartCanvas = document.getElementById('project-status-chart'); // Get the new canvas
+                projectStatusNoDataMessage = document.getElementById('project-status-no-data-message'); // Get the new message
 
                 userIdDisplay = document.getElementById('user-id-display'); // Get the new user ID display element
                 dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
