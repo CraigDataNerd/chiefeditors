@@ -243,12 +243,19 @@
                     </div>
                     <div>
                         <h3 class="text-xl font-semibold mb-3 text-gray-700">Payments by Week</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex flex-col items-center justify-center relative">
-                            <canvas id="monthly-payments-chart" class="w-full h-full"></canvas>
-                            <div id="monthly-payments-no-data-message" class="absolute text-gray-500 hidden">
-                                No payment data for the last 4 weeks.
+                        <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex flex-col relative">
+                            <!-- Chart container -->
+                            <div class="flex-1 w-full flex items-center justify-center relative">
+                                <canvas id="monthly-payments-chart" class="w-full h-full"></canvas>
+                                <div id="monthly-payments-no-data-message" class="absolute text-gray-500 hidden">
+                                    No payment data for the last 4 weeks.
+                                </div>
                             </div>
-                            <p class="text-sm text-gray-600 mt-7">Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span></p>
+                        
+                            <!-- Total text -->
+                            <p class="text-sm text-gray-600 mt-2 text-center">
+                                Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span>
+                            </p>
                         </div>
                     </div>
                 </div>
