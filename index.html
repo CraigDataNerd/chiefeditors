@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChiefEditors Dashboard</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #e5e7eb; /* Slightly darker gray background */
+            padding-top: 96px; /* Add padding to body to prevent content from being hidden by fixed header */
+        }
+        /* Custom styles for better aesthetics and responsiveness */
+        .container {
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        /* Keeping custom box-shadow for a specific aesthetic, if not fully covered by default Tailwind shadows */
+        .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        /* Specific rounded corners might be custom, keeping for now */
+        .rounded-b-xl {
+            border-bottom-left-radius: 1rem;
+            border-bottom-right-radius: 1rem;
+        }
+        .rounded-xl {
+            border-radius: 1rem;
+        }
+        /* Keeping custom transition for specific hover effects */
+        .transition-transform {
+            transition-property: transform;
+            transition-duration: 0.2s;
+            transition-timing-function: ease-in-out;
+        }
+        .hover\:scale-105:hover {
+            transform: scale(1.05);
+        }
+        .table-header {
+            background-color: #f9fafb;
+        }
+        .table-row:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        /* Canvas specific styling for responsiveness - !important used to override Chart.js inline styles */
+        canvas {
+            background-color: #fff;
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+        /* Fixed header style */
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100; /* Ensure it stays on top of other content */
+            backdrop-filter: blur(8px); /* Add blur effect to content behind the header */
+            -webkit-backdrop-filter: blur(8px); /* For Safari support */
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            position: relative;
+        }
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .modal-close-btn:hover {
+            color: #374151;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6b7280;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notification badge style */
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #ef4444; /* Red color */
+            color: white;
+            border-radius: 9999px; /* Full rounded */
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+            min-width: 24px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+
+    <!-- date-fns for date manipulation -->
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/cdn.min.js"></script>
+    <!-- Chart.js for charting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Import Timestamp
+
+        // Expose Firebase functions to the global scope for use in the main script
+        window.firebase = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged,
+            getFirestore,
+            collection,
+            getDocs,
+            addDoc,
+            updateDoc,
+            deleteDoc,
+            doc,
+            onSnapshot,
+            Timestamp // Expose Timestamp
+        };
+    </script>
+</head>
+<body>
+    <div id="app" class="min-h-screen bg-gray-100 font-inter antialiased">
+        <header class="bg-gray-200 bg-opacity-50 text-gray-900 p-6 rounded-b-xl shadow-lg fixed-header">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="flex items-center">
+                    <img 
+                        src="CHief-Editors-XLogo.png" 
+                        onerror="this.onerror=null;this.src='https://placehold.co/60x60/FFFFFF/000000?text=Logo';" 
+                        alt="ChiefEditors Logo" 
+                        class="h-12 w-auto ml-3 rounded-full">
+                    <span id="user-id-display" class="ml-4 text-sm font-medium text-gray-700 hidden"></span>
+                </div>
+                <!-- AI Insights Button with Notification Badge -->
+                <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                    AI Insights
+                    <span id="notification-badge" class="notification-badge hidden">0</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="container mx-auto p-6 mt-8">
+            <!-- Loading/Error Message -->
+            <div id="status-message" class="hidden flex items-center justify-center min-h-[100px] bg-red-100 text-red-700 p-4 rounded-lg mb-6">
+                <p id="status-text"></p>
+            </div>
+
+            <!-- Weekly Summary Section -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="prev-week-btn" class="bg-gray-200 text-gray-800 hover:bg-gray-300 font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">Previous Week</button>
+                    <span id="current-week-range" class="text-lg font-semibold text-gray-700"></span>
+                    <button id="next-week-btn" class="bg-gray-200 text-gray-800 hover:bg-gray-300 font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">Next Week</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg shadow-sm">
+                        <p class="text-sm text-gray-600">Total Hours Worked</p>
+                        <p id="total-hours" class="text-3xl font-bold text-blue-700">0.0 hrs</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow-sm">
+                        <p class="text-sm text-gray-600">Total Payments Received</p>
+                        <p id="total-payments" class="text-3xl font-bold text-green-700">$ 0.00</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg shadow-sm">
+                        <p class="text-sm text-gray-600">Net Income</p>
+                        <p id="net-income" class="text-3xl font-bold text-purple-800">$ 0.00</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-gray-700">Hours Worked by Day</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg max-h-[300px] flex items-center justify-center relative">
+                            <canvas id="daily-hours-chart"></canvas>
+                            <div id="daily-hours-no-data-message" class="absolute text-gray-500 hidden">
+                                No data for this week.
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 text-gray-700">Payments by Week</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex flex-col items-center justify-center relative">
+                            <canvas id="monthly-payments-chart" class="w-full h-full"></canvas>
+                            <div id="monthly-payments-no-data-message" class="absolute text-gray-500 hidden">
+                                No payment data for the last 4 weeks.
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2">Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Project Management Section -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Project Management</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 p-4 border rounded-lg bg-gray-50">
+                    <!-- Column 1: Project Name -->
+                    <div class="flex flex-col h-full">
+                        <label for="project-name" class="block text-gray-700 text-sm font-bold mb-2">Project Name</label>
+                        <input type="text" id="project-name" placeholder="e.g., Client X Analysis" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <!-- Column 2: Contract Amount -->
+                    <div class="flex flex-col h-full">
+                        <label for="contract-amount" class="block text-gray-700 text-sm font-bold mb-2">Contract Amount ($)</label>
+                        <input type="number" id="contract-amount" placeholder="e.g., 5000" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <!-- Column 3: Deadline -->
+                    <div class="flex flex-col h-full">
+                        <label for="project-deadline" class="block text-gray-700 text-sm font-bold mb-2">Deadline</label>
+                        <input type="date" id="project-deadline" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <!-- Column 4: Add Project Button -->
+                    <div class="flex flex-col h-full justify-end">
+                        <button id="add-project-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" disabled>Add Project</button>
+                        <input type="hidden" id="editing-project-id"> <!-- Hidden input to store ID of project being edited -->
+                    </div>
+                </div>
+                <div class="mb-6 p-4 border rounded-lg bg-gray-50">
+                    <label for="project-description" class="block text-gray-700 text-sm font-bold mb-2">Project Description</label>
+                    <textarea id="project-description" rows="4" placeholder="A detailed description of the project, including scope, deliverables, and objectives." class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled></textarea>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Project Name</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Contract Amount ($)</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Deadline</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Description</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projects-list" class="divide-y divide-gray-200">
+                            <tr><td colspan="6" class="py-4 px-4 text-center text-gray-500">No projects added yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Time Tracking Section -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Time Tracking</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 p-4 border rounded-lg bg-gray-50">
+                    <div>
+                        <label for="time-project-select" class="block text-gray-700 text-sm font-bold mb-2">Project</label>
+                        <select id="time-project-select" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                            <option value="">Select a Project</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="time-hours" class="block text-gray-700 text-sm font-bold mb-2">Hours</label>
+                        <input type="number" id="time-hours" placeholder="e.g., 8" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <div>
+                        <label for="time-date" class="block text-gray-700 text-sm font-bold mb-2">Date</label>
+                        <input type="date" id="time-date" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <button id="add-time-entry-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" disabled>Log Hours</button>
+                    <input type="hidden" id="editing-time-entry-id"> <!-- Hidden input for editing -->
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Project</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Hours</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="time-entries-list" class="divide-y divide-gray-200">
+                            <tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No time entries logged yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Payment Tracking Section -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Payment Tracking</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 p-4 border rounded-lg bg-gray-50">
+                    <div>
+                        <label for="payment-project-select" class="block text-gray-700 text-sm font-bold mb-2">Project</label>
+                        <select id="payment-project-select" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                            <option value="">Select a Project</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="payment-amount" class="block text-gray-700 text-sm font-bold mb-2">Amount ($)</label>
+                        <input type="number" id="payment-amount" placeholder="e.g., 10000" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <div>
+                        <label for="payment-date" class="block text-gray-700 text-sm font-bold mb-2">Date</label>
+                        <input type="date" id="payment-date" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <button id="add-payment-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" disabled>Log Payment</button>
+                    <input type="hidden" id="editing-payment-id"> <!-- Hidden input for editing -->
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Project</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Amount ($)</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payments-list" class="divide-y divide-gray-200">
+                            <tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No payments logged yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Removed the standalone Monthly Payments Section -->
+            </section>
+
+            <!-- Deduction Tracking Section -->
+            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Deductions</h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-6 p-4 border rounded-lg bg-gray-50">
+                    <div class="md:col-span-2">
+                        <label for="deduction-description" class="block text-gray-700 text-sm font-bold mb-2">Description</label>
+                        <input type="text" id="deduction-description" placeholder="e.g., Software subscription" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <div>
+                        <label for="deduction-amount" class="block text-gray-700 text-sm font-bold mb-2">Amount ($)</label>
+                        <input type="number" id="deduction-amount" placeholder="e.g., 250" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <div>
+                        <label for="deduction-date" class="block text-gray-700 text-sm font-bold mb-2">Date</label>
+                    <input type="date" id="deduction-date" class="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200" disabled>
+                    </div>
+                    <button id="add-deduction-btn" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" disabled>Add Deduction</button>
+                    <input type="hidden" id="editing-deduction-id"> <!-- Hidden input for editing -->
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Description</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Amount ($)</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                                <th class="py-3 px-4 text-left text-sm font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deductions-list" class="divide-y divide-gray-200">
+                            <tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No deductions added yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Total Deductions moved here -->
+                <div class="bg-red-50 p-4 rounded-lg shadow-sm text-center mt-4">
+                    <p class="text-sm text-gray-600">Total Deductions (Current Week)</p>
+                    <p id="total-deductions" class="text-3xl font-bold text-red-700">$ 0.00</p>
+                </div>
+                <!-- Re-added deductionChartDiv here -->
+                <div class="bg-gray-50 p-4 rounded-lg shadow-sm text-center mt-4 min-h-[200px] flex items-center justify-center relative">
+                    <canvas id="deduction-chart-canvas"></canvas>
+                    <div id="deduction-no-data-message" class="absolute text-gray-500 hidden">
+                        No deduction data for this week.
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Gemini AI Insights Modal -->
+    <div id="gemini-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <button id="gemini-modal-close-btn" class="modal-close-btn">&times;</button>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">AI Insights & Reminders</h2>
+            <div id="gemini-analysis-content" class="text-gray-700">
+                <div id="gemini-loading-spinner" class="loading-spinner hidden"></div>
+                <p id="gemini-analysis-text">Click "Get Insights" to analyze your data.</p>
+            </div>
+            <button id="get-insights-btn" class="mt-6 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
+                Get Insights
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Declare date-fns functions globally using 'let' so they can be assigned later
+        let format, startOfWeek, endOfWeek, isWithinInterval, parseISO, addWeeks, subWeeks, addDays, differenceInDays, isPast, isFuture, isSameDay;
+
+        // --- Firebase Globals ---
+        // IMPORTANT: When running this file directly (not in Canvas), you MUST replace these placeholders
+        // with your actual Firebase project configuration.
+        // You can find your Firebase config in your Firebase project settings under "Your apps".
+        // Example:
+        // const firebaseConfig = {
+        //   apiKey: "AIzaSyC...",
+        //   authDomain: "your-project-id.firebaseapp.com",
+        //   projectId: "your-project-id",
+        //   storageBucket: "your-project-id.appspot.com",
+        //   messagingSenderId: "...",
+        //   appId: "1:..."
+        // };
+        //
+        // If running in Canvas, these will be populated automatically.
+        let app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let firebaseConfig = {}; // Initialize as empty object
+
+        // Attempt to parse __firebase_config if available (when running in Canvas)
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                firebaseConfig = JSON.parse(__firebase_config);
+                console.log("Firebase config loaded from Canvas environment.");
+            } catch (e) {
+                console.error("Error parsing __firebase_config from Canvas:", e);
+                showStatusMessage("Critical Error: Failed to parse Firebase configuration from Canvas. Please ensure Firebase is correctly set up in Canvas.", true);
+            }
+        } else {
+            console.warn("Firebase config (__firebase_config) not found in Canvas environment. If running locally, please provide firebaseConfig manually.");
+            // If running locally, you would uncomment and populate firebaseConfig here:
+
+            firebaseConfig = {
+                apiKey: "AIzaSyAjkdj5aw4l81IYv_2OmT2_cUuizeK9hAw",
+                authDomain: "chiefeditors-c8fe2.firebaseapp.com",
+                projectId: "chiefeditors-c8fe2",
+                storageBucket: "chiefeditors-c8fe2.firebasestorage.app",
+                messagingSenderId: "847929501203",
+                appId: "1:847929501203:web:b9e1cb5240ba990c0b81e6",
+                measurementId: "G-BMYBK0QZJS"
+            };
+            app_id = firebaseConfig.projectId; // Use projectId as app_id for local testing
+
+            showStatusMessage("Firebase configuration not found. If running locally, please update the code with your Firebase project details.", true);
+        }
+
+
+        let firebaseApp, firestoreDb, firebaseAuth;
+        let userId = null; // Will be set after authentication
+        let unsubscribeListeners = []; // Array to store unsubscribe functions for Firestore listeners
+
+        let statusMessageDiv;
+        let statusTextP;
+
+        function showStatusMessage(message, isError = false) {
+            if (!statusTextP || !statusMessageDiv) {
+                console.error("Status message elements not found. This should not happen after initializeDashboard.");
+                return;
+            }
+            statusTextP.textContent = message;
+            statusMessageDiv.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            if (isError) {
+                statusMessageDiv.classList.add('bg-red-100', 'text-red-700');
+            } else {
+                statusMessageDiv.classList.add('bg-green-100', 'text-green-700');
+            }
+            statusMessageDiv.classList.add('flex'); // Ensure it's visible
+            setTimeout(() => {
+                statusMessageDiv.classList.remove('flex');
+                statusMessageDiv.classList.add('hidden');
+            }, 5000); // Increased duration to 5 seconds
+        }
+
+        // Function to enable/disable input fields and buttons
+        function setFormEnabled(enabled) {
+            console.log(`[setFormEnabled] Setting form elements to: ${enabled}`);
+            if (projectNameInput) projectNameInput.disabled = !enabled;
+            if (contractAmountInput) contractAmountInput.disabled = !enabled;
+            if (projectDeadlineInput) projectDeadlineInput.disabled = !enabled;
+            if (projectDescriptionTextarea) projectDescriptionTextarea.disabled = !enabled;
+            if (addProjectBtn) addProjectBtn.disabled = !enabled;
+
+            if (timeProjectSelect) timeProjectSelect.disabled = !enabled;
+            if (timeHoursInput) timeHoursInput.disabled = !enabled;
+            if (timeDateInput) timeDateInput.disabled = !enabled;
+            if (addTimeEntryBtn) addTimeEntryBtn.disabled = !enabled;
+
+            if (paymentProjectSelect) paymentProjectSelect.disabled = !enabled;
+            // paymentAmountInput is handled by its own change listener, but ensure it's disabled if overall forms are disabled
+            if (paymentAmountInput) paymentAmountInput.disabled = !enabled;
+            if (paymentDateInput) paymentDateInput.disabled = !enabled;
+            if (addPaymentBtn) addPaymentBtn.disabled = !enabled;
+
+            if (deductionDescriptionInput) deductionDescriptionInput.disabled = !enabled;
+            if (deductionAmountInput) deductionAmountInput.disabled = !enabled;
+            if (deductionDateInput) deductionDateInput.disabled = !enabled;
+            if (addDeductionBtn) addDeductionBtn.disabled = !enabled;
+
+            // Also disable/enable delete buttons in tables
+            document.querySelectorAll('.delete-btn').forEach(btn => btn.disabled = !enabled);
+            document.querySelectorAll('.edit-btn').forEach(btn => btn.disabled = !enabled); // New: Disable edit buttons too
+            document.querySelectorAll('.project-status-select').forEach(select => select.disabled = !enabled);
+
+            console.log(`[setFormEnabled] projectNameInput.disabled: ${projectNameInput?.disabled}`);
+            console.log(`[setFormEnabled] addProjectBtn.disabled: ${addProjectBtn?.disabled}`);
+            console.log(`[setFormEnabled] timeDateInput.disabled: ${timeDateInput?.disabled}`);
+        }
+
+        // --- Firebase Initialization and Authentication ---
+        const initializeFirebaseAndAuth = async () => {
+            console.log("[initializeFirebaseAndAuth] Initializing Firebase...");
+            try {
+                // Check if firebaseConfig is valid before initializing
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                    const errorMessage = "Firebase configuration is missing or invalid. Please ensure Firebase is enabled in the Canvas environment settings or provided manually for local execution.";
+                    console.error("[initializeFirebaseAndAuth] " + errorMessage);
+                    showStatusMessage("Critical Error: " + errorMessage, true);
+                    setFormEnabled(false);
+                    return false; // Indicate failure
+                }
+
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+
+                firebaseAuth = firebase.getAuth(firebaseApp);
+                firestoreDb = firebase.getFirestore(firebaseApp);
+
+                // Listen for auth state changes
+                firebase.onAuthStateChanged(firebaseAuth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("[onAuthStateChanged] User is signed in:", userId);
+                        if (userIdDisplay) {
+                            userIdDisplay.textContent = `User ID: ${userId}`;
+                            userIdDisplay.classList.remove('hidden');
+                        }
+                        // Now that we have a userId, set up real-time listeners
+                        setupFirestoreListeners();
+                        setFormEnabled(true);
+                        showStatusMessage('Dashboard loaded and ready!', false);
+                    } else {
+                        console.log("[onAuthStateChanged] No user signed in. Attempting anonymous sign-in.");
+                        try {
+                            // __initial_auth_token is provided by Canvas. If running locally, it will be undefined.
+                            // In that case, we fall back to anonymous sign-in.
+                            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                            if (initialAuthToken) {
+                                await firebase.signInWithCustomToken(firebaseAuth, initialAuthToken);
+                                console.log("[signInWithCustomToken] Signed in with custom token.");
+                            } else {
+                                await firebase.signInAnonymously(firebaseAuth);
+                                console.log("[signInAnonymously] Signed in anonymously.");
+                            }
+                        } catch (error) {
+                            console.error("Firebase authentication error:", error);
+                            showStatusMessage(`Authentication failed: ${error.message}. Please refresh.`, true);
+                            setFormEnabled(false);
+                        }
+                    }
+                });
+                return true; // Indicate success
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                showStatusMessage(`Firebase initialization failed: ${error.message}. Please refresh.`, true);
+                setFormEnabled(false);
+                return false; // Indicate failure
+            }
+        };
+
+
+        // --- Data State ---
+        let projects = [];
+        let timeEntries = [];
+        let payments = [];
+        let deductions = [];
+        let currentWeekStart;
+        let dailyHoursChartInstance = null;
+        let monthlyPaymentsChartInstance = null;
+        let deductionChartInstance = null; // New: Chart instance for deductions
+
+        // --- DOM Elements ---
+        let projectNameInput;
+        let contractAmountInput;
+        let projectDeadlineInput;
+        let projectDescriptionTextarea;
+        let addProjectBtn;
+        let projectsListBody;
+        let editingProjectIdInput; // New: Hidden input for project editing
+
+        let timeProjectSelect;
+        let timeHoursInput;
+        let timeDateInput;
+        let addTimeEntryBtn;
+        let timeEntriesListBody;
+        let editingTimeEntryIdInput; // New: Hidden input for time entry editing
+
+        let paymentProjectSelect;
+        let paymentAmountInput;
+        let paymentDateInput;
+        let addPaymentBtn;
+        let paymentsListBody;
+        let editingPaymentIdInput; // New: Hidden input for payment editing
+
+        let deductionDescriptionInput;
+        let deductionAmountInput;
+        let deductionDateInput;
+        let addDeductionBtn;
+        let deductionsListBody;
+        let editingDeductionIdInput; // New: Hidden input for deduction editing
+
+        let currentWeekRangeSpan;
+        let prevWeekBtn;
+        let nextWeekBtn;
+        let totalHoursP;
+        let totalPaymentsP;
+        let totalDeductionsP;
+        let netIncomeP;
+        let dailyHoursChartCanvas;
+        let dailyHoursNoDataMessage;
+
+        let monthlyPaymentsChartCanvas;
+        let monthlyPaymentsNoDataMessage;
+        let totalMonthlyPaymentsP;
+
+        let deductionChartCanvas; // New: Canvas for deduction chart
+        let deductionNoDataMessage; // New: No data message for deduction chart
+
+        let userIdDisplay; // New: Element to display user ID
+
+
+        // Gemini Modal Elements
+        let aiInsightsBtn;
+        let notificationBadge;
+        let geminiModalOverlay;
+        let geminiModalCloseBtn;
+        let geminiAnalysisContent;
+        let geminiLoadingSpinner;
+        let geminiAnalysisText;
+        let getInsightsBtn;
+
+
+        // --- Firestore Operations ---
+
+        // Helper to get the correct collection path
+        function getUserCollectionRef(collectionName) {
+            if (!userId) {
+                console.error("User ID not available. Cannot access Firestore collection.");
+                throw new Error("Authentication not complete. Cannot access data.");
+            }
+            // Private data path for each user
+            return firebase.collection(firestoreDb, `artifacts/${app_id}/users/${userId}/${collectionName}`);
+        }
+
+        // Removed getAllItems as onSnapshot will handle initial load and updates
+
+        const addItem = async (storeName, item) => {
+            console.log(`[addItem] Attempting to add item to Firestore collection: ${storeName}`);
+            if (!userId) {
+                console.error("User ID not available. Cannot add item to Firestore.");
+                throw new Error("Authentication not complete. Cannot add data.");
+            }
+            try {
+                // Firestore automatically generates an ID if you use addDoc
+                const docRef = await firebase.addDoc(getUserCollectionRef(storeName), {
+                    ...item,
+                    // Convert Date objects to Firestore Timestamps for storage
+                    date: item.date instanceof Date ? firebase.Timestamp.fromDate(item.date) : item.date,
+                    deadline: item.deadline instanceof Date ? firebase.Timestamp.fromDate(item.deadline) : item.deadline,
+                    createdAt: item.createdAt instanceof Date ? firebase.Timestamp.fromDate(item.createdAt) : item.createdAt
+                });
+                // Return the item with the new Firestore ID
+                return { ...item, id: docRef.id };
+            } catch (error) {
+                console.error(`Error adding item to Firestore collection ${storeName}:`, error);
+                throw error;
+            }
+        };
+
+        const updateItem = async (storeName, id, updates) => {
+            console.log(`[updateItem] Attempting to update item in Firestore collection: ${storeName}, ID: ${id}`);
+            if (!userId) {
+                console.error("User ID not available. Cannot update item in Firestore.");
+                throw new Error("Authentication not complete. Cannot update data.");
+            }
+            try {
+                const docRef = firebase.doc(getUserCollectionRef(storeName), id);
+                // Convert Date objects to Firestore Timestamps for storage
+                const updatesToStore = { ...updates };
+                if (updatesToStore.date instanceof Date) updatesToStore.date = firebase.Timestamp.fromDate(updatesToStore.date);
+                if (updatesToStore.deadline instanceof Date) updatesToStore.deadline = firebase.Timestamp.fromDate(updatesToStore.deadline);
+                if (updatesToStore.createdAt instanceof Date) updatesToStore.createdAt = firebase.Timestamp.fromDate(updatesToStore.createdAt);
+
+                await firebase.updateDoc(docRef, updatesToStore);
+                // No direct return of updated item from updateDoc, onSnapshot will handle refresh
+                return true;
+            } catch (error) {
+                console.error(`Error updating item in Firestore collection ${storeName}, ID ${id}:`, error);
+                throw error;
+            }
+        };
+
+        const deleteItem = async (storeName, id) => {
+            console.log(`[deleteItem] Attempting to delete item from Firestore collection: ${storeName}, ID: ${id}`);
+            if (!userId) {
+                console.error("User ID not available. Cannot delete item from Firestore.");
+                throw new Error("Authentication not complete. Cannot delete data.");
+            }
+            try {
+                const docRef = firebase.doc(getUserCollectionRef(storeName), id);
+                await firebase.deleteDoc(docRef);
+                return true;
+            } catch (error) {
+                console.error(`Error deleting item from Firestore collection ${storeName}, ID ${id}:`, error);
+                throw error;
+            }
+        };
+
+
+        // --- Render Functions ---
+
+        const getDeadlineClass = (deadline, status) => {
+            if (!deadline || status === 'Completed' || status === 'Archived') {
+                return 'text-gray-600';
+            }
+            const today = new Date();
+            if (isPast(deadline) && !isSameDay(deadline, today)) {
+                return 'bg-red-100 text-red-700 font-bold';
+            }
+            // Changed from 7 days to 3 days
+            if (isFuture(deadline) && differenceInDays(deadline, today) <= 3) {
+                return 'bg-yellow-100 text-yellow-700 font-semibold';
+            }
+            return 'text-gray-600';
+        };
+
+        const renderProjects = () => {
+            if (!projectsListBody) { console.error("projectsListBody is null in renderProjects"); return; }
+            projectsListBody.innerHTML = '';
+            if (projects.length === 0) {
+                projectsListBody.innerHTML = '<tr><td colspan="6" class="py-4 px-4 text-center text-gray-500">No projects added yet.</td></tr>';
+                return;
+            }
+            projects.forEach(project => {
+                const row = document.createElement('tr');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${project.name}</td>
+                    <td class="py-3 px-4">$ ${project.contractAmount?.toFixed(2)}</td>
+                    <td class="py-3 px-4 ${getDeadlineClass(project.deadline, project.status)}">${project.deadline ? format(project.deadline, 'yyyy-MM-dd') : 'N/A'}</td>
+                    <td class="py-3 px-4 text-sm max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">${project.description || 'N/A'}</td>
+                    <td class="py-3 px-4">
+                        <select data-id="${project.id}" class="project-status-select p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-400" ${!userId ? 'disabled' : ''}>
+                            <option value="In Progress" ${project.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Completed" ${project.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                            <option value="On Hold" ${project.status === 'On Hold' ? 'selected' : ''}>On Hold</option>
+                            <option value="Archived" ${project.status === 'Archived' ? 'selected' : ''}>Archived</option>
+                        </select>
+                    </td>
+                    <td class="py-3 px-4 flex space-x-2">
+                        <button data-id="${project.id}" data-store="projects" class="edit-btn bg-blue-500 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Edit</button>
+                        <button data-id="${project.id}" data-store="projects" class="delete-btn bg-red-500 hover:bg-red-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Delete</button>
+                    </td>
+                `;
+                projectsListBody.appendChild(row);
+            });
+
+            projectsListBody.querySelectorAll('.project-status-select').forEach(select => {
+                select.addEventListener('change', async (e) => {
+                    const projectId = e.target.dataset.id;
+                    const newStatus = e.target.value;
+                    try {
+                        await updateItem('projects', projectId, { status: newStatus });
+                        showStatusMessage('Project status updated successfully!', false);
+                    } catch (error) {
+                        showStatusMessage('Failed to update project status.', true);
+                        console.error('Error updating project status:', error);
+                    }
+                });
+            });
+        };
+
+        const renderTimeEntries = () => {
+            if (!timeEntriesListBody) { console.error("timeEntriesListBody is null in renderTimeEntries"); return; }
+            timeEntriesListBody.innerHTML = '';
+            if (timeEntries.length === 0) {
+                timeEntriesListBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No time entries logged yet.</td></tr>';
+                return;
+            }
+            timeEntries.forEach(entry => {
+                const project = projects.find(p => p.id === entry.projectId);
+                const projectName = project ? project.name : 'Unknown Project';
+                const row = document.createElement('tr');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${projectName}</td>
+                    <td class="py-3 px-4">${entry.hours} hrs</td>
+                    <td class="py-3 px-4">${entry.date ? format(entry.date, 'yyyy-MM-dd') : 'N/A'}</td>
+                    <td class="py-3 px-4 flex space-x-2">
+                        <button data-id="${entry.id}" data-store="timeEntries" class="edit-btn bg-blue-500 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Edit</button>
+                        <button data-id="${entry.id}" data-store="timeEntries" class="delete-btn bg-red-500 hover:bg-red-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Delete</button>
+                    </td>
+                `;
+                timeEntriesListBody.appendChild(row);
+            });
+        };
+
+        const renderPayments = () => {
+            if (!paymentsListBody) { console.error("paymentsListBody is null in renderPayments"); return; }
+            paymentsListBody.innerHTML = '';
+            if (payments.length === 0) {
+                paymentsListBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No payments logged yet.</td></tr>';
+                return;
+            }
+            payments.forEach(payment => {
+                const project = projects.find(p => p.id === payment.projectId);
+                const projectName = project ? project.name : 'Unknown Project';
+                const row = document.createElement('tr');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${projectName}</td>
+                    <td class="py-3 px-4">$ ${payment.amount?.toFixed(2)}</td>
+                    <td class="py-3 px-4">${payment.date ? format(payment.date, 'yyyy-MM-dd') : 'N/A'}</td>
+                    <td class="py-3 px-4 flex space-x-2">
+                        <button data-id="${payment.id}" data-store="payments" class="edit-btn bg-blue-500 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Edit</button>
+                        <button data-id="${payment.id}" data-store="payments" class="delete-btn bg-red-500 hover:bg-red-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Delete</button>
+                    </td>
+                `;
+                paymentsListBody.appendChild(row);
+            });
+        };
+
+        const renderDeductions = () => {
+            if (!deductionsListBody) { console.error("deductionsListBody is null in renderDeductions"); return; }
+            deductionsListBody.innerHTML = '';
+            if (deductions.length === 0) {
+                deductionsListBody.innerHTML = '<tr><td colspan="4" class="py-4 px-4 text-center text-gray-500">No deductions added yet.</td></tr>';
+                return;
+            }
+            deductions.forEach(deduction => {
+                const row = document.createElement('tr');
+                row.className = 'table-row';
+                row.innerHTML = `
+                    <td class="py-3 px-4">${deduction.description}</td>
+                    <td class="py-3 px-4">$ ${deduction.amount?.toFixed(2)}</td>
+                    <td class="py-3 px-4">${deduction.date ? format(deduction.date, 'yyyy-MM-dd') : 'N/A'}</td>
+                    <td class="py-3 px-4 flex space-x-2">
+                        <button data-id="${deduction.id}" data-store="deductions" class="edit-btn bg-blue-500 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Edit</button>
+                        <button data-id="${deduction.id}" data-store="deductions" class="delete-btn bg-red-500 hover:bg-red-700 text-white text-sm px-3 py-1 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" ${!userId ? 'disabled' : ''}>Delete</button>
+                    </td>
+                `;
+                deductionsListBody.appendChild(row);
+            });
+        };
+
+        const populateProjectSelects = () => {
+            const selects = [timeProjectSelect, paymentProjectSelect];
+            selects.forEach(select => {
+                if (!select) { console.error(`A project select element is null in populateProjectSelects`); return; }
+                select.innerHTML = '<option value="">Select a Project</option>';
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = project.name;
+                    select.appendChild(option);
+                });
+            });
+        };
+
+        const renderWeeklySummary = () => {
+            console.log("[renderWeeklySummary] Called. Checking DOM elements...");
+            const elementsToCheck = {
+                currentWeekRangeSpan: currentWeekRangeSpan,
+                totalHoursP: totalHoursP,
+                totalPaymentsP: totalPaymentsP,
+                totalDeductionsP: totalDeductionsP,
+                netIncomeP: netIncomeP,
+                dailyHoursChartCanvas: dailyHoursChartCanvas,
+                dailyHoursNoDataMessage: dailyHoursNoDataMessage,
+                monthlyPaymentsChartCanvas: monthlyPaymentsChartCanvas,
+                monthlyPaymentsNoDataMessage: monthlyPaymentsNoDataMessage,
+                totalMonthlyPaymentsP: totalMonthlyPaymentsP,
+                deductionChartCanvas: deductionChartCanvas, // Check new canvas
+                deductionNoDataMessage: deductionNoDataMessage // Check new message
+            };
+
+            let allElementsFound = true;
+            for (const key in elementsToCheck) {
+                if (!elementsToCheck[key]) {
+                    console.error(`[renderWeeklySummary] DOM element '${key}' not found (is null).`);
+                    allElementsFound = false;
+                }
+            }
+
+            if (!allElementsFound) {
+                console.error("One or more weekly summary DOM elements not found. Skipping renderWeeklySummary.");
+                return;
+            }
+
+
+            const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+            currentWeekRangeSpan.textContent = `${format(currentWeekStart, 'MMM dd,yyyy')} - ${format(weekEnd, 'MMM dd,yyyy')}`;
+
+            const weeklyTimeEntries = timeEntries.filter(entry =>
+                entry.date && isWithinInterval(entry.date, { start: currentWeekStart, end: weekEnd })
+            );
+
+            const weeklyPayments = payments.filter(payment =>
+                payment.date && isWithinInterval(payment.date, { start: currentWeekStart, end: weekEnd })
+            );
+
+            const weeklyDeductions = deductions.filter(deduction =>
+                deduction.date && isWithinInterval(deduction.date, { start: currentWeekStart, end: weekEnd })
+            );
+
+            const totalHours = weeklyTimeEntries.reduce((sum, entry) => sum + entry.hours, 0);
+            const totalEarningsFromPayments = weeklyPayments.reduce((sum, payment) => sum + payment.amount, 0);
+            const totalDeductions = weeklyDeductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+            const netIncome = totalEarningsFromPayments - totalDeductions;
+
+            totalHoursP.textContent = `${totalHours.toFixed(1)} hrs`;
+            totalPaymentsP.textContent = `$ ${totalEarningsFromPayments.toFixed(2)}`;
+            totalDeductionsP.textContent = `$ ${totalDeductions.toFixed(2)}`;
+            netIncomeP.textContent = `$ ${netIncome.toFixed(2)}`;
+
+            const dailyHoursData = {};
+            const lastWeekStart = subWeeks(currentWeekStart, 1);
+            const lastWeekEnd = endOfWeek(lastWeekStart, { weekStartsOn: 1 });
+            const lastWeeklyTimeEntries = timeEntries.filter(entry =>
+                entry.date && isWithinInterval(entry.date, { start: lastWeekStart, end: lastWeekEnd })
+            );
+
+            const lastDailyHoursData = {};
+
+            let day = startOfWeek(currentWeekStart, { weekStartsOn: 1 });
+            for (let i = 0; i < 7; i++) {
+                const dateKey = format(day, 'yyyy-MM-dd');
+                dailyHoursData[dateKey] = 0;
+                lastDailyHoursData[dateKey] = 0;
+                day = addDays(day, 1);
+            }
+
+            weeklyTimeEntries.forEach(entry => {
+                const dateKey = format(entry.date, 'yyyy-MM-dd');
+                dailyHoursData[dateKey] = (dailyHoursData[dateKey] || 0) + entry.hours;
+            });
+
+            lastWeeklyTimeEntries.forEach(entry => {
+                const originalDate = parseISO(format(entry.date, 'yyyy-MM-dd'));
+                const dayOffset = differenceInDays(originalDate, lastWeekStart);
+                const correspondingCurrentWeekDay = addDays(currentWeekStart, dayOffset);
+                const dateKey = format(correspondingCurrentWeekDay, 'yyyy-MM-dd');
+                lastDailyHoursData[dateKey] = (lastDailyHoursData[dateKey] || 0) + entry.hours;
+            });
+
+            const chartLabels = Object.keys(dailyHoursData).sort().map(date => format(parseISO(date), 'EEE, MMM d'));
+            const currentWeekChartData = Object.keys(dailyHoursData).sort().map(date => dailyHoursData[date]);
+            const lastWeekChartData = Object.keys(lastDailyHoursData).sort().map(date => lastDailyHoursData[date]);
+
+
+            if (dailyHoursChartInstance) {
+                dailyHoursChartInstance.destroy();
+            }
+
+            if (currentWeekChartData.some(val => val > 0) || lastWeekChartData.some(val => val > 0)) {
+                dailyHoursChartCanvas.style.display = 'block';
+                dailyHoursNoDataMessage.classList.add('hidden');
+
+                dailyHoursChartInstance = new Chart(dailyHoursChartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: chartLabels,
+                        datasets: [{
+                            label: 'Current Week Hours',
+                            data: currentWeekChartData,
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            tension: 0.1,
+                            fill: false,
+                            pointBackgroundColor: 'rgb(75, 192, 192)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(75, 192, 192)'
+                        },
+                        {
+                            label: 'Last Week Hours',
+                            data: lastWeekChartData,
+                            borderColor: 'rgb(255, 99, 132)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            tension: 0.1,
+                            fill: false,
+                            pointBackgroundColor: 'rgb(255, 99, 132)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(255, 99, 132)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw} hrs`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Day of Week'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Hours'
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                if (dailyHoursChartInstance) {
+                    dailyHoursChartInstance.destroy();
+                    dailyHoursChartInstance = null;
+                }
+                dailyHoursChartCanvas.style.display = 'none';
+                dailyHoursNoDataMessage.classList.remove('hidden');
+            }
+
+            const paymentsByWeek = {};
+            let totalMonthlyPayments = 0;
+            const weekLabels = [];
+            const weeklyPaymentData = [];
+
+            for (let i = 0; i < 4; i++) {
+                const weekStart = subWeeks(currentWeekStart, 3 - i);
+                const weekEndForCalc = endOfWeek(weekStart, { weekStartsOn: 1 });
+
+                const paymentsInWeek = payments.filter(payment =>
+                    payment.date && isWithinInterval(payment.date, { start: weekStart, end: weekEndForCalc })
+                );
+                const weekTotal = paymentsInWeek.reduce((sum, payment) => sum + payment.amount, 0);
+                weeklyPaymentData.push(weekTotal);
+                totalMonthlyPayments += weekTotal;
+
+                weekLabels.push(`${format(weekStart, 'MMM dd')}`);
+            }
+
+            totalMonthlyPaymentsP.textContent = `$ ${totalMonthlyPayments.toFixed(2)}`;
+
+            if (monthlyPaymentsChartInstance) {
+                monthlyPaymentsChartInstance.destroy();
+            }
+
+            if (weeklyPaymentData.some(val => val > 0)) {
+                monthlyPaymentsChartCanvas.style.display = 'block';
+                monthlyPaymentsNoDataMessage.classList.add('hidden');
+                monthlyPaymentsChartInstance = new Chart(monthlyPaymentsChartCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: weekLabels,
+                        datasets: [{
+                            label: 'Payments Received ($)',
+                            data: weeklyPaymentData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgb(75, 192, 192)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: $ ${context.raw.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Week'
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Amount ($)'
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                if (monthlyPaymentsChartInstance) {
+                    monthlyPaymentsChartInstance.destroy();
+                    monthlyPaymentsChartInstance = null;
+                }
+                monthlyPaymentsChartCanvas.style.display = 'none';
+                monthlyPaymentsNoDataMessage.classList.remove('hidden');
+            }
+
+
+            // --- Deduction Chart Rendering ---
+            const deductionCategories = weeklyDeductions.reduce((acc, deduction) => {
+                const category = deduction.description.split(' ')[0] || 'Other'; // Simple categorization by first word
+                acc[category] = (acc[category] || 0) + deduction.amount;
+                return acc;
+            }, {});
+
+            if (deductionChartInstance) {
+                deductionChartInstance.destroy();
+            }
+
+            if (Object.keys(deductionCategories).length > 0) {
+                deductionChartCanvas.style.display = 'block';
+                deductionNoDataMessage.classList.add('hidden');
+
+                const chartDeductionLabels = Object.keys(deductionCategories);
+                const chartDeductionData = Object.values(deductionCategories);
+
+                deductionChartInstance = new Chart(deductionChartCanvas, {
+                    type: 'pie',
+                    data: {
+                        labels: chartDeductionLabels,
+                        datasets: [{
+                            label: 'Deductions by Category ($)',
+                            data: chartDeductionData,
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.6)', // Red
+                                'rgba(54, 162, 235, 0.6)', // Blue
+                                'rgba(255, 206, 86, 0.6)', // Yellow
+                                'rgba(75, 192, 192, 0.6)', // Green
+                                'rgba(153, 102, 255, 0.6)', // Purple
+                                'rgba(255, 159, 64, 0.6)'  // Orange
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += `$ ${context.raw.toFixed(2)}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                if (deductionChartInstance) {
+                    deductionChartInstance.destroy();
+                    deductionChartInstance = null;
+                }
+                deductionChartCanvas.style.display = 'none';
+                deductionNoDataMessage.classList.remove('hidden');
+            }
+        };
+
+        const updateNotificationBadge = () => {
+            const today = new Date();
+            const approachingDeadlines = projects.filter(project =>
+                project.status === 'In Progress' && project.deadline && isFuture(project.deadline) && differenceInDays(project.deadline, today) <= 3 // Changed from 7 to 3
+            ).map(project => ({
+                name: project.name,
+                deadline: format(project.deadline, 'MMM dd,yyyy')
+            }));
+            const count = approachingDeadlines.length;
+
+            if (notificationBadge) {
+                notificationBadge.textContent = count;
+                if (count > 0) {
+                    notificationBadge.classList.remove('hidden');
+                } else {
+                    notificationBadge.classList.add('hidden');
+                }
+            }
+        };
+
+        // Replaced loadAllData with setupFirestoreListeners
+        const setupFirestoreListeners = () => {
+            // Unsubscribe from any existing listeners to prevent duplicates
+            unsubscribeListeners.forEach(unsubscribe => unsubscribe());
+            unsubscribeListeners = [];
+
+            if (!userId) {
+                console.warn("[setupFirestoreListeners] userId not available. Cannot set up listeners.");
+                return;
+            }
+
+            // Project Listener
+            const unsubscribeProjects = firebase.onSnapshot(getUserCollectionRef('projects'), (snapshot) => {
+                projects = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: data.date && data.date.toDate ? data.date.toDate() : (data.date ? parseISO(data.date) : null),
+                        deadline: data.deadline && data.deadline.toDate ? data.deadline.toDate() : (data.deadline ? parseISO(data.deadline) : null),
+                        createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : (data.createdAt ? parseISO(data.createdAt) : null)
+                    };
+                });
+                renderProjects();
+                populateProjectSelects();
+                updateNotificationBadge();
+                renderWeeklySummary(); // Re-render summary as projects affect it
+                showStatusMessage('Projects updated in real-time!', false);
+            }, (error) => {
+                console.error("Error listening to projects:", error);
+                showStatusMessage('Error loading projects in real-time.', true);
+            });
+            unsubscribeListeners.push(unsubscribeProjects);
+
+            // Time Entries Listener
+            const unsubscribeTimeEntries = firebase.onSnapshot(getUserCollectionRef('timeEntries'), (snapshot) => {
+                timeEntries = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: data.date && data.date.toDate ? data.date.toDate() : (data.date ? parseISO(data.date) : null),
+                        createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : (data.createdAt ? parseISO(data.createdAt) : null)
+                    };
+                });
+                renderTimeEntries();
+                renderWeeklySummary(); // Re-render summary as time entries affect it
+                showStatusMessage('Time entries updated in real-time!', false);
+            }, (error) => {
+                console.error("Error listening to timeEntries:", error);
+                showStatusMessage('Error loading time entries in real-time.', true);
+            });
+            unsubscribeListeners.push(unsubscribeTimeEntries);
+
+            // Payments Listener
+            const unsubscribePayments = firebase.onSnapshot(getUserCollectionRef('payments'), (snapshot) => {
+                payments = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: data.date && data.date.toDate ? data.date.toDate() : (data.date ? parseISO(data.date) : null),
+                        createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : (data.createdAt ? parseISO(data.createdAt) : null)
+                    };
+                });
+                renderPayments();
+                renderWeeklySummary(); // Re-render summary as payments affect it
+                showStatusMessage('Payments updated in real-time!', false);
+            }, (error) => {
+                console.error("Error listening to payments:", error);
+                showStatusMessage('Error loading payments in real-time.', true);
+            });
+            unsubscribeListeners.push(unsubscribePayments);
+
+            // Deductions Listener
+            const unsubscribeDeductions = firebase.onSnapshot(getUserCollectionRef('deductions'), (snapshot) => {
+                deductions = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        date: data.date && data.date.toDate ? data.date.toDate() : (data.date ? parseISO(data.date) : null),
+                        createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : (data.createdAt ? parseISO(data.createdAt) : null)
+                    };
+                });
+                renderDeductions();
+                renderWeeklySummary(); // Re-render summary as deductions affect it
+                showStatusMessage('Deductions updated in real-time!', false);
+            });
+            unsubscribeListeners.push(unsubscribeDeductions);
+        };
+
+
+        // --- Edit Item Functions ---
+        const editProject = (id) => {
+            const project = projects.find(p => p.id === id);
+            if (project) {
+                projectNameInput.value = project.name;
+                contractAmountInput.value = project.contractAmount;
+                projectDeadlineInput.value = project.deadline ? format(project.deadline, 'yyyy-MM-dd') : '';
+                projectDescriptionTextarea.value = project.description;
+                editingProjectIdInput.value = project.id; // Store ID for update
+                addProjectBtn.textContent = 'Update Project';
+                addProjectBtn.classList.remove('bg-purple-500');
+                addProjectBtn.classList.add('bg-blue-500');
+            }
+        };
+
+        const editTimeEntry = (id) => {
+            const entry = timeEntries.find(e => e.id === id);
+            if (entry) {
+                timeProjectSelect.value = entry.projectId;
+                timeHoursInput.value = entry.hours;
+                timeDateInput.value = entry.date ? format(entry.date, 'yyyy-MM-dd') : '';
+                editingTimeEntryIdInput.value = entry.id;
+                addTimeEntryBtn.textContent = 'Update Hours';
+                addTimeEntryBtn.classList.remove('bg-purple-500');
+                addTimeEntryBtn.classList.add('bg-blue-500');
+            }
+        };
+
+        const editPayment = (id) => {
+            const payment = payments.find(p => p.id === id);
+            if (payment) {
+                paymentProjectSelect.value = payment.projectId;
+                paymentAmountInput.value = payment.amount;
+                paymentDateInput.value = payment.date ? format(payment.date, 'yyyy-MM-dd') : '';
+                // Ensure payment amount input is enabled for editing, then disable if project changes
+                paymentAmountInput.disabled = false;
+                editingPaymentIdInput.value = payment.id;
+                addPaymentBtn.textContent = 'Update Payment';
+                addPaymentBtn.classList.remove('bg-purple-500');
+                addPaymentBtn.classList.add('bg-blue-500');
+            }
+        };
+
+        const editDeduction = (id) => {
+            const deduction = deductions.find(d => d.id === id);
+            if (deduction) {
+                deductionDescriptionInput.value = deduction.description;
+                deductionAmountInput.value = deduction.amount;
+                deductionDateInput.value = deduction.date ? format(deduction.date, 'yyyy-MM-dd') : '';
+                editingDeductionIdInput.value = deduction.id;
+                addDeductionBtn.textContent = 'Update Deduction';
+                addDeductionBtn.classList.remove('bg-purple-500');
+                addDeductionBtn.classList.add('bg-blue-500');
+            }
+        };
+
+        // --- Reset Form Functions ---
+        const resetProjectForm = () => {
+            projectNameInput.value = '';
+            contractAmountInput.value = '';
+            projectDeadlineInput.value = format(addWeeks(new Date(), 1), 'yyyy-MM-dd');
+            projectDescriptionTextarea.value = '';
+            editingProjectIdInput.value = '';
+            addProjectBtn.textContent = 'Add Project';
+            addProjectBtn.classList.remove('bg-blue-500');
+            addProjectBtn.classList.add('bg-purple-500');
+        };
+
+        const resetTimeEntryForm = () => {
+            timeProjectSelect.value = '';
+            timeHoursInput.value = '';
+            timeDateInput.value = format(new Date(), 'yyyy-MM-dd');
+            editingTimeEntryIdInput.value = '';
+            addTimeEntryBtn.textContent = 'Log Hours';
+            addTimeEntryBtn.classList.remove('bg-blue-500');
+            addTimeEntryBtn.classList.add('bg-purple-500');
+        };
+
+        const resetPaymentForm = () => {
+            paymentProjectSelect.value = '';
+            paymentAmountInput.value = '';
+            paymentAmountInput.disabled = false; // Re-enable amount input
+            paymentDateInput.value = format(new Date(), 'yyyy-MM-dd');
+            editingPaymentIdInput.value = '';
+            addPaymentBtn.textContent = 'Log Payment';
+            addPaymentBtn.classList.remove('bg-blue-500');
+            addPaymentBtn.classList.add('bg-purple-500');
+        };
+
+        const resetDeductionForm = () => {
+            deductionDescriptionInput.value = '';
+            deductionAmountInput.value = '';
+            deductionDateInput.value = format(new Date(), 'yyyy-MM-dd');
+            editingDeductionIdInput.value = '';
+            addDeductionBtn.textContent = 'Add Deduction';
+            addDeductionBtn.classList.remove('bg-blue-500');
+            addDeductionBtn.classList.add('bg-purple-500');
+        };
+
+
+        // --- Gemini API Integration ---
+        const generateGeminiAnalysis = async () => {
+            geminiLoadingSpinner.classList.remove('hidden');
+            geminiAnalysisText.textContent = 'Generating insights...';
+            getInsightsBtn.disabled = true;
+
+            const apiKey = ""; // Canvas will automatically provide this at runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+            const lastWeekStart = subWeeks(currentWeekStart, 1);
+            const lastWeekEnd = endOfWeek(lastWeekStart, { weekStartsOn: 1 });
+
+            const currentWeeklyTimeEntries = timeEntries.filter(entry =>
+                entry.date && isWithinInterval(entry.date, { start: currentWeekStart, end: currentWeekEnd })
+            );
+            const currentWeeklyPayments = payments.filter(payment =>
+                payment.date && isWithinInterval(payment.date, { start: currentWeekStart, end: currentWeekEnd })
+            );
+            const currentWeeklyDeductions = deductions.filter(deduction =>
+                deduction.date && isWithinInterval(deduction.date, { start: currentWeekStart, end: currentWeekEnd })
+            );
+
+            const lastWeeklyTimeEntries = timeEntries.filter(entry =>
+                entry.date && isWithinInterval(entry.date, { start: lastWeekStart, end: lastWeekEnd })
+            );
+            const lastWeeklyPayments = payments.filter(payment =>
+                payment.date && isWithinInterval(payment.date, { start: lastWeekStart, end: lastWeekEnd })
+            );
+            const lastWeeklyDeductions = deductions.filter(deduction =>
+                deduction.date && isWithinInterval(deduction.date, { start: lastWeekStart, end: lastWeekEnd })
+            );
+
+            const currentTotalHours = currentWeeklyTimeEntries.reduce((sum, entry) => sum + entry.hours, 0);
+            const currentTotalPayments = currentWeeklyPayments.reduce((sum, payment) => sum + payment.amount, 0);
+            const currentTotalDeductions = currentWeeklyDeductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+            const currentNetIncome = currentTotalPayments - currentTotalDeductions;
+
+            const lastTotalHours = lastWeeklyTimeEntries.reduce((sum, entry) => sum + entry.hours, 0);
+            const lastTotalPayments = lastWeeklyPayments.reduce((sum, payment) => sum + payment.amount, 0);
+            const lastTotalDeductions = lastWeeklyDeductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+            const lastNetIncome = lastTotalPayments - lastTotalDeductions;
+
+            const today = new Date();
+            const approachingDeadlines = projects.filter(project =>
+                project.status === 'In Progress' && project.deadline && isFuture(project.deadline) && differenceInDays(project.deadline, today) <= 3 // Changed from 7 to 3
+            ).map(project => ({
+                name: project.name,
+                deadline: format(project.deadline, 'MMM dd,yyyy')
+            }));
+
+            let prompt = `Analyze my freelance performance for the week of ${format(currentWeekStart, 'MMM dd,yyyy')} to ${format(currentWeekEnd, 'MMM dd,yyyy')}.`;
+            prompt += `\n\n**This week's stats:**\n- Total Hours Worked: ${currentTotalHours.toFixed(1)} hrs\n-- Total Payments Received: $ ${currentTotalPayments.toFixed(2)}\n- Total Deductions: $ ${currentTotalDeductions.toFixed(2)}\n- Net Income: $ ${currentNetIncome.toFixed(2)}`;
+            prompt += `\n\n**Last week's stats (${format(lastWeekStart, 'MMM dd,yyyy')} - ${format(lastWeekEnd, 'MMM dd,yyyy')}):**\n- Total Hours Worked: ${lastTotalHours.toFixed(1)} hrs\n- Total Payments Received: $ ${lastTotalPayments.toFixed(2)}\n- Total Deductions: $ ${lastTotalDeductions.toFixed(2)}\n- Net Income: $ ${lastNetIncome.toFixed(2)}`;
+
+            if (approachingDeadlines.length > 0) {
+                prompt += `\n\n**Approaching Deadlines (within 3 days):**\n`; // Updated text
+                approachingDeadlines.forEach(dl => {
+                    prompt += `- Project: **${dl.name}**, Deadline: ${dl.deadline}\n`;
+                });
+            } else {
+                prompt += `\n\n**No approaching deadlines in the next 3 days.**`; // Updated text
+            }
+
+            prompt += `\n\nBased on this data, provide a concise analysis. Provide a report but do not directly state if the user is making very little, you are merely comparing between the previous and current week`;
+
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API error: ${response.status} ${response.statusText} - ${JSON.stringify(errorData)}`);
+                }
+
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    geminiAnalysisText.innerHTML = marked.parse(text);
+                    showStatusMessage('AI insights generated successfully!', false);
+                } else {
+                    geminiAnalysisText.textContent = 'No insights could be generated. The AI response was empty or malformed.';
+                    console.error('Gemini API response was empty or malformed:', result);
+                    showStatusMessage('Failed to generate AI insights.', true);
+                }
+            } catch (error) {
+                geminiAnalysisText.textContent = `Error generating insights: ${error.message}. Please try again.`;
+                console.error('Error calling Gemini API:', error);
+                showStatusMessage('Failed to generate AI insights.', true);
+            } finally {
+                geminiLoadingSpinner.classList.add('hidden');
+                getInsightsBtn.disabled = false;
+            }
+        };
+
+        // Function to display approaching deadlines immediately in the modal
+        const displayApproachingDeadlinesInModal = () => {
+            const today = new Date();
+            const approachingDeadlines = projects.filter(project =>
+                project.status === 'In Progress' && project.deadline && isFuture(project.deadline) && differenceInDays(project.deadline, today) <= 3
+            );
+
+            let deadlineHtml = '';
+            if (approachingDeadlines.length > 0) {
+                deadlineHtml += `**Approaching Deadlines (within 3 days):**\n`;
+                approachingDeadlines.forEach(dl => {
+                    deadlineHtml += `- Project: **${dl.name}**, Deadline: ${format(dl.deadline, 'MMM dd,yyyy')}\n`;
+                });
+            } else {
+                deadlineHtml += `**No approaching deadlines in the next 3 days.**`;
+            }
+            geminiAnalysisText.innerHTML = marked.parse(deadlineHtml);
+        };
+
+
+        // --- Event Listeners ---
+        window.onload = async () => {
+            console.log("[window.onload] Event fired.");
+
+            const MAX_RETRIES = 20;
+            let retries = 0;
+            const RETRY_DELAY_MS = 50;
+
+            const checkDateFnsReady = () => {
+                if (window.dateFns && typeof window.dateFns.format === 'function') {
+                    format = window.dateFns.format;
+                    startOfWeek = window.dateFns.startOfWeek;
+                    endOfWeek = window.dateFns.endOfWeek;
+                    isWithinInterval = window.dateFns.isWithinInterval;
+                    parseISO = window.dateFns.parseISO;
+                    addWeeks = window.dateFns.addWeeks;
+                    subWeeks = window.dateFns.subWeeks;
+                    addDays = window.dateFns.addDays;
+                    differenceInDays = window.dateFns.differenceInDays;
+                    isPast = window.dateFns.isPast;
+                    isFuture = window.dateFns.isFuture;
+                    isSameDay = window.dateFns.isSameDay;
+
+                    console.log("[window.onload] date-fns functions assigned from window.dateFns.");
+                    initializeDashboard();
+                } else if (retries < MAX_RETRIES) {
+                    retries++;
+                    console.warn(`[window.onload] date-fns not ready, retrying... (${retries}/${MAX_RETRIES})`);
+                    setTimeout(checkDateFnsReady, RETRY_DELAY_MS);
+                } else {
+                    showStatusMessage('Critical Error: date-fns library not loaded after multiple attempts. Please refresh the page.', true);
+                    console.error('Critical Error: date-fns library (window.dateFns) is undefined after max retries.');
+                    setFormEnabled(false);
+                }
+            };
+
+            const initializeDashboard = async () => {
+                console.log("[initializeDashboard] Initializing DOM elements and dashboard...");
+                statusMessageDiv = document.getElementById('status-message');
+                statusTextP = document.getElementById('status-text');
+
+                projectNameInput = document.getElementById('project-name');
+                contractAmountInput = document.getElementById('contract-amount');
+                projectDeadlineInput = document.getElementById('project-deadline');
+                projectDescriptionTextarea = document.getElementById('project-description');
+                addProjectBtn = document.getElementById('add-project-btn');
+                projectsListBody = document.getElementById('projects-list');
+                editingProjectIdInput = document.getElementById('editing-project-id');
+
+                timeProjectSelect = document.getElementById('time-project-select');
+                timeHoursInput = document.getElementById('time-hours');
+                timeDateInput = document.getElementById('time-date');
+                addTimeEntryBtn = document.getElementById('add-time-entry-btn');
+                timeEntriesListBody = document.getElementById('time-entries-list');
+                editingTimeEntryIdInput = document.getElementById('editing-time-entry-id');
+
+                paymentProjectSelect = document.getElementById('payment-project-select');
+                paymentAmountInput = document.getElementById('payment-amount');
+                paymentDateInput = document.getElementById('payment-date');
+                addPaymentBtn = document.getElementById('add-payment-btn');
+                paymentsListBody = document.getElementById('payments-list');
+                editingPaymentIdInput = document.getElementById('editing-payment-id');
+
+                deductionDescriptionInput = document.getElementById('deduction-description');
+                deductionAmountInput = document.getElementById('deduction-amount');
+                deductionDateInput = document.getElementById('deduction-date');
+                addDeductionBtn = document.getElementById('add-deduction-btn');
+                deductionsListBody = document.getElementById('deductions-list');
+                editingDeductionIdInput = document.getElementById('editing-deduction-id');
+
+                currentWeekRangeSpan = document.getElementById('current-week-range');
+                prevWeekBtn = document.getElementById('prev-week-btn');
+                nextWeekBtn = document.getElementById('next-week-btn');
+                totalHoursP = document.getElementById('total-hours');
+                totalPaymentsP = document.getElementById('total-payments');
+                totalDeductionsP = document.getElementById('total-deductions');
+                netIncomeP = document.getElementById('net-income');
+                dailyHoursChartCanvas = document.getElementById('daily-hours-chart');
+                dailyHoursNoDataMessage = document.getElementById('daily-hours-no-data-message');
+
+                monthlyPaymentsChartCanvas = document.getElementById('monthly-payments-chart');
+                monthlyPaymentsNoDataMessage = document.getElementById('monthly-payments-no-data-message'); // Corrected typo here
+                totalMonthlyPaymentsP = document.getElementById('total-monthly-payments');
+
+                deductionChartCanvas = document.getElementById('deduction-chart-canvas'); // Get the new canvas
+                deductionNoDataMessage = document.getElementById('deduction-no-data-message'); // Get the new message
+
+                userIdDisplay = document.getElementById('user-id-display'); // Get the new user ID display element
+
+                aiInsightsBtn = document.getElementById('ai-insights-btn');
+                notificationBadge = document.getElementById('notification-badge');
+                geminiModalOverlay = document.getElementById('gemini-modal-overlay');
+                geminiModalCloseBtn = document.getElementById('gemini-modal-close-btn');
+                geminiAnalysisContent = document.getElementById('gemini-analysis-content');
+                geminiLoadingSpinner = document.getElementById('gemini-loading-spinner');
+                geminiAnalysisText = document.getElementById('gemini-analysis-text');
+                getInsightsBtn = document.getElementById('get-insights-btn');
+
+                if (prevWeekBtn) prevWeekBtn.addEventListener('click', () => { currentWeekStart = subWeeks(currentWeekStart, 1); renderWeeklySummary(); });
+                if (nextWeekBtn) nextWeekBtn.addEventListener('click', () => { currentWeekStart = addWeeks(currentWeekStart, 1); renderWeeklySummary(); });
+
+                document.addEventListener('click', async (e) => {
+                    // Delete button handler
+                    if (e.target.classList.contains('delete-btn')) {
+                        const idToDelete = e.target.dataset.id;
+                        const storeName = e.target.dataset.store;
+                        try {
+                            await deleteItem(storeName, idToDelete);
+                            showStatusMessage('Item deleted successfully!', false);
+                            // onSnapshot will handle the UI refresh
+                        } catch (error) {
+                            showStatusMessage('Failed to delete item.', true);
+                            console.error('Error deleting item:', error);
+                        }
+                    }
+                    // Edit button handler
+                    if (e.target.classList.contains('edit-btn')) {
+                        const idToEdit = e.target.dataset.id;
+                        const storeName = e.target.dataset.store;
+                        if (storeName === 'projects') editProject(idToEdit);
+                        else if (storeName === 'timeEntries') editTimeEntry(idToEdit);
+                        else if (storeName === 'payments') editPayment(idToEdit);
+                        else if (storeName === 'deductions') editDeduction(idToEdit);
+                    }
+                });
+
+                if (addProjectBtn) addProjectBtn.addEventListener('click', async () => {
+                    const name = projectNameInput.value.trim();
+                    const contractAmount = parseFloat(contractAmountInput.value);
+                    const deadline = projectDeadlineInput.value;
+                    const description = projectDescriptionTextarea.value.trim();
+                    const editingId = editingProjectIdInput.value;
+
+                    // Debugging logs for input values
+                    console.log("Add/Update Project Attempt:");
+                    console.log("  Name:", name);
+                    console.log("  Contract Amount:", contractAmount, " (isNaN:", isNaN(contractAmount), ")");
+                    console.log("  Deadline:", deadline);
+                    console.log("  Description:", description);
+                    console.log("  Editing ID:", editingId);
+
+
+                    if (name && !isNaN(contractAmount) && contractAmount > 0 && deadline) {
+                        if (editingId) {
+                            // Update existing project
+                            try {
+                                await updateItem('projects', editingId, { name, contractAmount, deadline: parseISO(deadline), description });
+                                showStatusMessage('Project updated successfully!', false);
+                                resetProjectForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to update project.', true);
+                                console.error('Error updating project:', error);
+                            }
+                        } else {
+                            // Add new project
+                            const newProject = {
+                                name,
+                                contractAmount,
+                                deadline: parseISO(deadline),
+                                description,
+                                status: 'In Progress',
+                                createdAt: new Date(),
+                            };
+                            try {
+                                await addItem('projects', newProject); // ID is generated by Firestore
+                                showStatusMessage('Project added successfully!', false);
+                                resetProjectForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to add project.', true);
+                                console.error('Error adding project:', error);
+                            }
+                        }
+                    } else {
+                        let errorMessage = 'Please fill in: ';
+                        if (!name) errorMessage += 'Project Name, ';
+                        if (isNaN(contractAmount) || contractAmount <= 0) errorMessage += 'Valid Contract Amount, ';
+                        if (!deadline) errorMessage += 'Deadline, ';
+                        errorMessage = errorMessage.slice(0, -2) + '.'; // Remove trailing comma and add period
+                        showStatusMessage(errorMessage, true);
+                        console.error("Project validation failed:", errorMessage);
+                    }
+                });
+
+                if (addTimeEntryBtn) addTimeEntryBtn.addEventListener('click', async () => {
+                    const projectId = timeProjectSelect.value;
+                    const hours = parseFloat(timeHoursInput.value);
+                    const date = timeDateInput.value;
+                    const editingId = editingTimeEntryIdInput.value;
+
+                    if (projectId && !isNaN(hours) && hours > 0 && date) {
+                        if (editingId) {
+                            // Update existing time entry
+                            try {
+                                await updateItem('timeEntries', editingId, { projectId, hours, date: parseISO(date) });
+                                showStatusMessage('Time entry updated successfully!', false);
+                                resetTimeEntryForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to update time entry.', true);
+                                console.error('Error updating time entry:', error);
+                            }
+                        } else {
+                            // Add new time entry
+                            const newTimeEntry = {
+                                projectId,
+                                hours,
+                                date: parseISO(date),
+                                createdAt: new Date(),
+                            };
+                            try {
+                                await addItem('timeEntries', newTimeEntry); // ID is generated by Firestore
+                                showStatusMessage('Time entry logged successfully!', false);
+                                resetTimeEntryForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to log time entry.', true);
+                                console.error('Error logging time entry:', error);
+                            }
+                        }
+                    } else {
+                        showStatusMessage('Please select a project, enter valid hours, and a date.', true);
+                    }
+                });
+
+                if (addPaymentBtn) addPaymentBtn.addEventListener('click', async () => {
+                    const projectId = paymentProjectSelect.value;
+                    const amount = parseFloat(paymentAmountInput.value);
+                    const date = paymentDateInput.value;
+                    const editingId = editingPaymentIdInput.value;
+
+                    if (projectId && !isNaN(amount) && amount > 0 && date) {
+                        if (editingId) {
+                            // Update existing payment
+                            try {
+                                await updateItem('payments', editingId, { projectId, amount, date: parseISO(date) });
+                                showStatusMessage('Payment updated successfully!', false);
+                                resetPaymentForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to update payment.', true);
+                                console.error('Error updating payment:', error);
+                            }
+                        } else {
+                            // Add new payment
+                            const newPayment = {
+                                projectId,
+                                amount,
+                                date: parseISO(date),
+                                createdAt: new Date(),
+                            };
+                            try {
+                                await addItem('payments', newPayment); // ID is generated by Firestore
+                                showStatusMessage('Payment logged successfully!', false);
+                                resetPaymentForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to log payment.', true);
+                                console.error('Error logging payment:', error);
+                            }
+                        }
+                    } else {
+                        showStatusMessage('Please select a project, ensure a valid amount is set, and select a date.', true);
+                    }
+                });
+
+                if (paymentProjectSelect) {
+                    paymentProjectSelect.addEventListener('change', () => {
+                        const selectedProjectId = paymentProjectSelect.value;
+                        if (selectedProjectId) {
+                            const project = projects.find(p => p.id === selectedProjectId);
+                            if (project) {
+                                const paymentsForProject = payments.filter(p => p.projectId === selectedProjectId);
+                                const totalPaid = paymentsForProject.reduce((sum, p) => sum + p.amount, 0);
+                                const outstandingAmount = project.contractAmount - totalPaid;
+                                paymentAmountInput.value = Math.max(0, outstandingAmount).toFixed(2);
+                                paymentAmountInput.disabled = true;
+                            }
+                        } else {
+                            paymentAmountInput.value = '';
+                            paymentAmountInput.disabled = false;
+                        }
+                    });
+                }
+
+
+                if (addDeductionBtn) addDeductionBtn.addEventListener('click', async () => {
+                    const description = deductionDescriptionInput.value.trim();
+                    const amount = parseFloat(deductionAmountInput.value);
+                    const date = deductionDateInput.value;
+                    const editingId = editingDeductionIdInput.value;
+
+                    if (description && !isNaN(amount) && amount > 0 && date) {
+                        if (editingId) {
+                            // Update existing deduction
+                            try {
+                                await updateItem('deductions', editingId, { description, amount, date: parseISO(date) });
+                                showStatusMessage('Deduction updated successfully!', false);
+                                resetDeductionForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to update deduction.', true);
+                                console.error('Error updating deduction:', error);
+                            }
+                        } else {
+                            // Add new deduction
+                            const newDeduction = {
+                                description,
+                                amount,
+                                date: parseISO(date),
+                                createdAt: new Date(),
+                            };
+                            try {
+                                await addItem('deductions', newDeduction); // ID is generated by Firestore
+                                showStatusMessage('Deduction added successfully!', false);
+                                resetDeductionForm();
+                                // onSnapshot will handle the UI refresh
+                            } catch (error) {
+                                showStatusMessage('Failed to add deduction.', true);
+                                console.error('Error adding deduction:', error);
+                            }
+                        }
+                    } else {
+                        showStatusMessage('Please enter a description, valid amount, and a date for the deduction.', true);
+                    }
+                });
+
+                if (aiInsightsBtn) {
+                    aiInsightsBtn.addEventListener('click', () => {
+                        geminiModalOverlay.classList.add('show');
+                        // Display approaching deadlines immediately on modal open
+                        displayApproachingDeadlinesInModal();
+                        geminiLoadingSpinner.classList.add('hidden');
+                        getInsightsBtn.disabled = false;
+                    });
+                }
+                if (geminiModalCloseBtn) {
+                    geminiModalCloseBtn.addEventListener('click', () => {
+                        geminiModalOverlay.classList.remove('show');
+                    });
+                }
+                if (getInsightsBtn) {
+                    getInsightsBtn.addEventListener('click', generateGeminiAnalysis);
+                }
+
+                // Initial dashboard setup now relies on Firebase Auth state changing
+                currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+                if (timeDateInput) timeDateInput.value = format(new Date(), 'yyyy-MM-dd');
+                if (paymentDateInput) paymentDateInput.value = format(new Date(), 'yyyy-MM-dd');
+                if (deductionDateInput) deductionDateInput.value = format(new Date(), 'yyyy-MM-dd');
+                if (projectDeadlineInput) projectDeadlineInput.value = format(addWeeks(new Date(), 1), 'yyyy-MM-dd');
+
+                // Start Firebase initialization and authentication process
+                const firebaseInitialized = await initializeFirebaseAndAuth();
+                if (firebaseInitialized) {
+                    // Initial form state is disabled until auth is ready and data loaded via listeners
+                    setFormEnabled(false);
+                    showStatusMessage('Initializing dashboard...', false);
+                }
+            };
+
+            checkDateFnsReady();
+        };
+    </script>
+</body>
+</html>
