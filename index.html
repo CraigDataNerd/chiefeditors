@@ -217,7 +217,7 @@
                         onerror="this.onerror=null;this.src='https://placehold.co/60x60/FFFFFF/000000?text=Logo';" 
                         alt="ChiefEditors Logo" 
                         class="h-12 w-auto ml-3 rounded-full">
-                    <span id="user-id-display" class="ml-4 text-sm font-medium text-gray-700 hidden"></span>
+                    <!-- Removed User ID Display -->
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- AI Insights Button with Notification Badge -->
@@ -254,7 +254,7 @@
                     </div>
                     <div class="bg-green-50 p-4 rounded-lg shadow-sm">
                         <p class="text-sm text-gray-600">Total Payments Received</p>
-                        <p id="total-payments" class="text-3xl font-bold text-green-700">$ 0.00</p>
+                        <p id="total-payments" class="3xl font-bold text-green-700">$ 0.00</p>
                     </div>
                     <div class="bg-purple-50 p-4 rounded-lg shadow-sm">
                         <p class="text-sm text-gray-600">Net Income</p>
@@ -265,16 +265,24 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
                         <h3 class="text-xl font-semibold mb-3 text-gray-700">Hours Worked by Day</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg max-h-[300px] flex items-center justify-center relative">
+                        <div class="bg-gray-50 p-4 rounded-lg min-h-[250px] flex items-center justify-center relative">
                             <canvas id="daily-hours-chart"></canvas>
                             <div id="daily-hours-no-data-message" class="absolute text-gray-500 hidden">
                                 No data for this week.
                             </div>
                         </div>
+                        <!-- Project Status Summary Chart (Moved Here) -->
+                        <h3 class="text-xl font-semibold mb-3 mt-6 text-gray-700">Project Status Summary</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg min-h-[250px] flex items-center justify-center relative">
+                            <canvas id="project-status-chart"></canvas>
+                            <div id="project-status-no-data-message" class="absolute text-gray-500 hidden">
+                                No project data to display status.
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <h3 class="text-xl font-semibold mb-3 text-gray-700">Payments by Week</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex flex-col relative">
+                        <div class="bg-gray-50 p-4 rounded-lg min-h-[250px] flex flex-col relative">
                             <!-- Chart container -->
                             <div class="flex-1 w-full flex items-center justify-center relative">
                                 <canvas id="monthly-payments-chart" class="w-full h-full"></canvas>
@@ -288,7 +296,14 @@
                                 Total: <span id="total-monthly-payments" class="text-xl font-bold text-green-700">$ 0.00</span>
                             </p>
                         </div>
-
+                        <!-- Deduction Chart (Moved Here) -->
+                        <h3 class="text-xl font-semibold mb-3 mt-6 text-gray-700">Deductions by Category (Current Week)</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg min-h-[250px] flex items-center justify-center relative">
+                            <canvas id="deduction-chart-canvas"></canvas>
+                            <div id="deduction-no-data-message" class="absolute text-gray-500 hidden">
+                                No deduction data for this week.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -338,17 +353,6 @@
                             <tr><td colspan="6" class="py-4 px-4 text-center text-gray-500">No projects added yet.</td></tr>
                         </tbody>
                     </table>
-                </div>
-            </section>
-
-            <!-- Project Status Summary Section (New) -->
-            <section class="bg-white p-6 rounded-xl shadow-md mb-6">
-                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Project Status Summary</h2>
-                <div class="bg-gray-50 p-4 rounded-lg max-h-[350px] flex items-center justify-center relative">
-                    <canvas id="project-status-chart"></canvas>
-                    <div id="project-status-no-data-message" class="absolute text-gray-500 hidden">
-                        No project data to display status.
-                    </div>
                 </div>
             </section>
 
@@ -469,13 +473,7 @@
                     <p class="text-sm text-gray-600">Total Deductions (Current Week)</p>
                     <p id="total-deductions" class="text-3xl font-bold text-red-700">$ 0.00</p>
                 </div>
-                <!-- Re-added deductionChartDiv here -->
-                <div class="bg-gray-50 p-4 rounded-lg shadow-sm text-center mt-4 max-h-[300px] flex items-center justify-center relative">
-                    <canvas id="deduction-chart-canvas"></canvas>
-                    <div id="deduction-no-data-message" class="absolute text-gray-500 hidden">
-                        No deduction data for this week.
-                    </div>
-                </div>
+                <!-- Deduction Chart is now moved to the Weekly Summary Section -->
             </section>
         </main>
     </div>
@@ -668,10 +666,7 @@
                     if (user) {
                         userId = user.uid;
                         console.log("[onAuthStateChanged] User is signed in:", userId);
-                        if (userIdDisplay) {
-                            userIdDisplay.textContent = `User ID: ${userId}`;
-                            userIdDisplay.classList.remove('hidden');
-                        }
+                        // Removed userIdDisplay update
                         // Hide auth modal and show dashboard
                         authModalOverlay.classList.remove('show');
                         dashboardContent.classList.remove('hidden');
@@ -765,7 +760,7 @@
         let projectStatusChartCanvas; // New: Canvas for project status chart
         let projectStatusNoDataMessage; // New: No data message for project status chart
 
-        let userIdDisplay; // New: Element to display user ID
+        // Removed userIdDisplay variable declaration
         let dashboardContent; // Main dashboard content div
         let signOutBtn; // Sign Out button
 
@@ -1101,6 +1096,9 @@
             totalPaymentsP.textContent = `$ ${totalEarningsFromPayments.toFixed(2)}`;
             totalDeductionsP.textContent = `$ ${totalDeductions.toFixed(2)}`;
             netIncomeP.textContent = `$ ${netIncome.toFixed(2)}`;
+
+            console.log("Current Week Totals:", { totalHours, totalEarningsFromPayments, totalDeductions, netIncome });
+
 
             const dailyHoursData = {};
             const lastWeekStart = subWeeks(currentWeekStart, 1);
@@ -1884,7 +1882,7 @@
                 projectStatusChartCanvas = document.getElementById('project-status-chart'); // Get the new canvas
                 projectStatusNoDataMessage = document.getElementById('project-status-no-data-message'); // Get the new message
 
-                userIdDisplay = document.getElementById('user-id-display'); // Get the new user ID display element
+                // Removed userIdDisplay initialization
                 dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
                 signOutBtn = document.getElementById('sign-out-btn'); // Get the sign out button
 
