@@ -178,7 +178,9 @@
             createUserWithEmailAndPassword, // Added for email/password sign-up
             GoogleAuthProvider, // Added for Google Sign-In
             signInWithPopup, // Added for Google Sign-In
-            signOut // Added for sign out
+            signOut, // Added for sign out
+            updatePassword, // Added for password change
+            deleteUser // Added for account deletion
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Import Timestamp
@@ -195,6 +197,8 @@
             GoogleAuthProvider, // Expose
             signInWithPopup, // Expose
             signOut, // Expose
+            updatePassword, // Expose
+            deleteUser, // Expose
             getFirestore,
             collection,
             getDocs,
@@ -217,13 +221,17 @@
                         onerror="this.onerror=null;this.src='https://placehold.co/60x60/FFFFFF/000000?text=Logo';" 
                         alt="ChiefEditors Logo" 
                         class="h-12 w-auto ml-3 rounded-full">
-                    <!-- Removed User ID Display -->
+                    <!-- User ID Display Removed -->
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- AI Insights Button with Notification Badge -->
                     <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
                         AI Insights
                         <span id="notification-badge" class="notification-badge hidden">0</span>
+                    </button>
+                    <!-- Account Management Button -->
+                    <button id="account-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden">
+                        Account
                     </button>
                     <!-- Sign Out Button -->
                     <button id="sign-out-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden">
@@ -481,23 +489,41 @@
     <!-- Authentication Modal -->
     <div id="auth-modal-overlay" class="modal-overlay show">
         <div id="auth-modal-content" class="modal-content p-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6">Sign In / Sign Up</h2>
-            <div class="mb-4">
-                <label for="auth-email" class="sr-only">Email</label>
-                <input type="email" id="auth-email" placeholder="Email" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
-            </div>
-            <div class="mb-6">
-                <label for="auth-password" class="sr-only">Password</label>
-                <input type="password" id="auth-password" placeholder="Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
-            </div>
-            <div id="auth-error-message" class="text-red-600 text-sm mb-4 hidden"></div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6" id="auth-modal-title">Sign In</h2>
+            
+            <!-- Sign In Form -->
+            <div id="sign-in-form">
+                <div class="mb-4">
+                    <label for="auth-email" class="sr-only">Email</label>
+                    <input type="email" id="auth-email" placeholder="Email" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div class="mb-6">
+                    <label for="auth-password" class="sr-only">Password</label>
+                    <input type="password" id="auth-password" placeholder="Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div id="auth-error-message" class="text-red-600 text-sm mb-4 hidden"></div>
 
-            <button id="auth-sign-in-email-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-3">
-                Sign In with Email
-            </button>
-            <button id="auth-sign-up-email-btn" class="bg-green-600 hover:bg-green-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-6">
-                Sign Up with Email
-            </button>
+                <button id="auth-sign-in-email-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-3">
+                    Sign In with Email
+                </button>
+            </div>
+
+            <!-- Sign Up Form (Initially Hidden) -->
+            <div id="sign-up-form" class="hidden">
+                <div class="mb-4">
+                    <label for="signup-email" class="sr-only">Email</label>
+                    <input type="email" id="signup-email" placeholder="Email" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div class="mb-6">
+                    <label for="signup-password" class="sr-only">Password</label>
+                    <input type="password" id="signup-password" placeholder="Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div id="signup-error-message" class="text-red-600 text-sm mb-4 hidden"></div>
+
+                <button id="auth-sign-up-email-btn" class="bg-green-600 hover:bg-green-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-6">
+                    Sign Up with Email
+                </button>
+            </div>
 
             <div class="relative flex py-5 items-center">
                 <div class="flex-grow border-t border-gray-300"></div>
@@ -511,6 +537,48 @@
                 </svg>
                 Sign In with Google
             </button>
+
+            <div class="mt-6 flex justify-center space-x-4">
+                <button id="show-signin-btn" class="text-blue-600 hover:text-blue-800 font-semibold">Sign In</button>
+                <button id="show-signup-btn" class="text-green-600 hover:text-green-800 font-semibold">Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Management Modal -->
+    <div id="account-modal-overlay" class="modal-overlay">
+        <div id="account-modal-content" class="modal-content p-8">
+            <button id="account-modal-close-btn" class="modal-close-btn">&times;</button>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">Account Management</h2>
+            
+            <div class="mb-4 text-left">
+                <p class="text-gray-700 text-sm font-bold mb-2">Current User:</p>
+                <p id="current-user-email" class="text-lg font-medium text-gray-900 break-words"></p>
+                <p id="current-user-uid" class="text-xs text-gray-500 break-words"></p>
+            </div>
+
+            <div id="password-change-section" class="border-t pt-4 mt-4 hidden">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Change Password</h3>
+                <div class="mb-4">
+                    <label for="new-password" class="sr-only">New Password</label>
+                    <input type="password" id="new-password" placeholder="New Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div class="mb-6">
+                    <label for="confirm-password" class="sr-only">Confirm New Password</label>
+                    <input type="password" id="confirm-password" placeholder="Confirm New Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition duration-200 mb-3" required>
+                </div>
+                <div id="password-change-message" class="text-red-600 text-sm mb-4 hidden"></div>
+                <button id="change-password-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full">
+                    Change Password
+                </button>
+            </div>
+
+            <div class="border-t pt-4 mt-4">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Account Actions</h3>
+                <button id="delete-account-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full">
+                    Delete My Account
+                </button>
+            </div>
         </div>
     </div>
 
@@ -665,12 +733,25 @@
                 firebase.onAuthStateChanged(firebaseAuth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        console.log("[onAuthStateChanged] User is signed in:", userId);
-                        // Removed userIdDisplay update
+                        console.log("[onAuthStateChanged] User is signed in:", user.email, userId);
                         // Hide auth modal and show dashboard
                         authModalOverlay.classList.remove('show');
                         dashboardContent.classList.remove('hidden');
                         signOutBtn.classList.remove('hidden');
+                        accountBtn.classList.remove('hidden'); // Show account button
+
+                        // Populate account modal with user info
+                        if (currentUserEmailP) currentUserEmailP.textContent = user.email || 'N/A';
+                        if (currentUserUidP) currentUserUidP.textContent = `UID: ${user.uid}`;
+                        
+                        // Show password change section only for email/password users
+                        if (passwordChangeSection) {
+                            if (user.providerData.some(provider => provider.providerId === 'password')) {
+                                passwordChangeSection.classList.remove('hidden');
+                            } else {
+                                passwordChangeSection.classList.add('hidden');
+                            }
+                        }
 
                         // Now that we have a userId, set up real-time listeners
                         setupFirestoreListeners();
@@ -683,6 +764,7 @@
                         authModalOverlay.classList.add('show');
                         dashboardContent.classList.add('hidden');
                         signOutBtn.classList.add('hidden');
+                        accountBtn.classList.add('hidden'); // Hide account button
                         setFormEnabled(false); // Disable forms until authenticated
                         // Clear any previous listeners if the user somehow signed out
                         unsubscribeListeners.forEach(unsubscribe => unsubscribe());
@@ -760,9 +842,9 @@
         let projectStatusChartCanvas; // New: Canvas for project status chart
         let projectStatusNoDataMessage; // New: No data message for project status chart
 
-        // Removed userIdDisplay variable declaration
         let dashboardContent; // Main dashboard content div
         let signOutBtn; // Sign Out button
+        let accountBtn; // Account Management button
 
         // Gemini Modal Elements
         let aiInsightsBtn;
@@ -776,12 +858,32 @@
 
         // Auth Modal Elements
         let authModalOverlay;
-        let authEmailInput;
-        let authPasswordInput;
+        let authModalTitle;
+        let signInForm;
+        let signUpForm;
+        let authEmailInput; // For sign-in
+        let authPasswordInput; // For sign-in
+        let signupEmailInput; // For sign-up
+        let signupPasswordInput; // For sign-up
         let authSignInEmailBtn;
         let authSignUpEmailBtn;
         let authGoogleSignInBtn;
-        let authErrorMessage;
+        let authErrorMessage; // For sign-in form
+        let signupErrorMessage; // For sign-up form
+        let showSigninBtn;
+        let showSignupBtn;
+
+        // Account Management Modal Elements
+        let accountModalOverlay;
+        let accountModalCloseBtn;
+        let currentUserEmailP;
+        let currentUserUidP;
+        let passwordChangeSection;
+        let newPasswordInput;
+        let confirmPasswordInput;
+        let changePasswordBtn;
+        let passwordChangeMessage;
+        let deleteAccountBtn;
 
 
         // --- Firestore Operations ---
@@ -1410,15 +1512,15 @@
                             label: 'Project Status',
                             data: chartData,
                             backgroundColor: [
-                                'rgba(54, 162, 235, 0.6)', // Blue for In Progress
+                                'rgba(255, 159, 64, 0.6)', // Amber for In Progress
                                 'rgba(75, 192, 192, 0.6)', // Green for Completed
-                                'rgba(255, 206, 86, 0.6)', // Yellow for On Hold
-                                'rgba(153, 102, 255, 0.6)'  // Purple for Archived
+                                'rgba(255, 99, 132, 0.6)', // Red for On Hold
+                                'rgba(153, 102, 255, 0.6)'  // Grey/Purple for Archived (using purple for distinctness)
                             ],
                             borderColor: [
-                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 159, 64, 1)',
                                 'rgba(75, 192, 192, 1)',
-                                'rgba(255, 206, 86, 1)',
+                                'rgba(255, 99, 132, 1)',
                                 'rgba(153, 102, 255, 1)'
                             ],
                             borderWidth: 1
@@ -1882,9 +1984,9 @@
                 projectStatusChartCanvas = document.getElementById('project-status-chart'); // Get the new canvas
                 projectStatusNoDataMessage = document.getElementById('project-status-no-data-message'); // Get the new message
 
-                // Removed userIdDisplay initialization
                 dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
                 signOutBtn = document.getElementById('sign-out-btn'); // Get the sign out button
+                accountBtn = document.getElementById('account-btn'); // Get the account button
 
                 aiInsightsBtn = document.getElementById('ai-insights-btn');
                 notificationBadge = document.getElementById('notification-badge');
@@ -1897,12 +1999,32 @@
 
                 // Auth Modal Elements
                 authModalOverlay = document.getElementById('auth-modal-overlay');
+                authModalTitle = document.getElementById('auth-modal-title');
+                signInForm = document.getElementById('sign-in-form');
+                signUpForm = document.getElementById('sign-up-form');
                 authEmailInput = document.getElementById('auth-email');
                 authPasswordInput = document.getElementById('auth-password');
+                signupEmailInput = document.getElementById('signup-email');
+                signupPasswordInput = document.getElementById('signup-password');
                 authSignInEmailBtn = document.getElementById('auth-sign-in-email-btn');
                 authSignUpEmailBtn = document.getElementById('auth-sign-up-email-btn');
                 authGoogleSignInBtn = document.getElementById('auth-google-sign-in-btn');
                 authErrorMessage = document.getElementById('auth-error-message');
+                signupErrorMessage = document.getElementById('signup-error-message');
+                showSigninBtn = document.getElementById('show-signin-btn');
+                showSignupBtn = document.getElementById('show-signup-btn');
+
+                // Account Management Modal Elements
+                accountModalOverlay = document.getElementById('account-modal-overlay');
+                accountModalCloseBtn = document.getElementById('account-modal-close-btn');
+                currentUserEmailP = document.getElementById('current-user-email');
+                currentUserUidP = document.getElementById('current-user-uid');
+                passwordChangeSection = document.getElementById('password-change-section');
+                newPasswordInput = document.getElementById('new-password');
+                confirmPasswordInput = document.getElementById('confirm-password');
+                changePasswordBtn = document.getElementById('change-password-btn');
+                passwordChangeMessage = document.getElementById('password-change-message');
+                deleteAccountBtn = document.getElementById('delete-account-btn');
 
 
                 if (prevWeekBtn) prevWeekBtn.addEventListener('click', () => { currentWeekStart = subWeeks(currentWeekStart, 1); renderWeeklySummary(); });
@@ -2174,16 +2296,16 @@
 
                 if (authSignUpEmailBtn) {
                     authSignUpEmailBtn.addEventListener('click', async () => {
-                        const email = authEmailInput.value;
-                        const password = authPasswordInput.value;
-                        authErrorMessage.classList.add('hidden');
+                        const email = signupEmailInput.value; // Use signupEmailInput
+                        const password = signupPasswordInput.value; // Use signupPasswordInput
+                        signupErrorMessage.classList.add('hidden'); // Use signupErrorMessage
                         try {
                             await firebase.createUserWithEmailAndPassword(firebaseAuth, email, password);
                             showStatusMessage('Account created and signed in successfully!', false);
                             // UI update handled by onAuthStateChanged
                         } catch (error) {
-                            authErrorMessage.textContent = `Sign-up failed: ${error.message}`;
-                            authErrorMessage.classList.remove('hidden');
+                            signupErrorMessage.textContent = `Sign-up failed: ${error.message}`; // Use signupErrorMessage
+                            signupErrorMessage.classList.remove('hidden');
                             console.error('Email sign-up error:', error);
                             showStatusMessage('Sign-up failed.', true);
                         }
@@ -2193,14 +2315,21 @@
                 if (authGoogleSignInBtn) {
                     authGoogleSignInBtn.addEventListener('click', async () => {
                         authErrorMessage.classList.add('hidden');
+                        signupErrorMessage.classList.add('hidden'); // Clear signup error too
                         try {
                             const provider = new firebase.GoogleAuthProvider();
                             await firebase.signInWithPopup(firebaseAuth, provider);
                             showStatusMessage('Signed in with Google successfully!', false);
                             // UI update handled by onAuthStateChanged
                         } catch (error) {
-                            authErrorMessage.textContent = `Google sign-in failed: ${error.message}`;
-                            authErrorMessage.classList.remove('hidden');
+                            // Display error on whichever form is currently visible, or a general message
+                            if (!signInForm.classList.contains('hidden')) {
+                                authErrorMessage.textContent = `Google sign-in failed: ${error.message}`;
+                                authErrorMessage.classList.remove('hidden');
+                            } else {
+                                signupErrorMessage.textContent = `Google sign-in failed: ${error.message}`;
+                                signupErrorMessage.classList.remove('hidden');
+                            }
                             console.error('Google sign-in error:', error);
                             showStatusMessage('Google sign-in failed.', true);
                         }
@@ -2216,6 +2345,108 @@
                         } catch (error) {
                             showStatusMessage('Failed to sign out.', true);
                             console.error('Sign out error:', error);
+                        }
+                    });
+                }
+
+                // Auth modal view toggles
+                if (showSigninBtn) {
+                    showSigninBtn.addEventListener('click', () => {
+                        signInForm.classList.remove('hidden');
+                        signUpForm.classList.add('hidden');
+                        authModalTitle.textContent = 'Sign In';
+                        authErrorMessage.classList.add('hidden'); // Clear errors on switch
+                        signupErrorMessage.classList.add('hidden');
+                    });
+                }
+                if (showSignupBtn) {
+                    showSignupBtn.addEventListener('click', () => {
+                        signInForm.classList.add('hidden');
+                        signUpForm.classList.remove('hidden');
+                        authModalTitle.textContent = 'Sign Up';
+                        authErrorMessage.classList.add('hidden'); // Clear errors on switch
+                        signupErrorMessage.classList.add('hidden');
+                    });
+                }
+
+
+                // --- Account Management Event Listeners ---
+                if (accountBtn) {
+                    accountBtn.addEventListener('click', () => {
+                        accountModalOverlay.classList.add('show');
+                    });
+                }
+                if (accountModalCloseBtn) {
+                    accountModalCloseBtn.addEventListener('click', () => {
+                        accountModalOverlay.classList.remove('show');
+                        passwordChangeMessage.classList.add('hidden'); // Clear message on close
+                        newPasswordInput.value = '';
+                        confirmPasswordInput.value = '';
+                    });
+                }
+                if (changePasswordBtn) {
+                    changePasswordBtn.addEventListener('click', async () => {
+                        const newPassword = newPasswordInput.value;
+                        const confirmPassword = confirmPasswordInput.value;
+                        passwordChangeMessage.classList.add('hidden');
+
+                        if (newPassword !== confirmPassword) {
+                            passwordChangeMessage.textContent = 'Passwords do not match.';
+                            passwordChangeMessage.classList.remove('hidden');
+                            return;
+                        }
+                        if (newPassword.length < 6) {
+                            passwordChangeMessage.textContent = 'Password must be at least 6 characters long.';
+                            passwordChangeMessage.classList.remove('hidden');
+                            return;
+                        }
+
+                        const user = firebaseAuth.currentUser;
+                        if (user) {
+                            try {
+                                await firebase.updatePassword(user, newPassword);
+                                passwordChangeMessage.textContent = 'Password updated successfully!';
+                                passwordChangeMessage.classList.remove('hidden');
+                                passwordChangeMessage.classList.remove('text-red-600');
+                                passwordChangeMessage.classList.add('text-green-600');
+                                newPasswordInput.value = '';
+                                confirmPasswordInput.value = '';
+                                showStatusMessage('Password updated successfully!', false);
+                            } catch (error) {
+                                passwordChangeMessage.textContent = `Error changing password: ${error.message}`;
+                                passwordChangeMessage.classList.remove('hidden');
+                                passwordChangeMessage.classList.remove('text-green-600');
+                                passwordChangeMessage.classList.add('text-red-600');
+                                console.error('Password change error:', error);
+                                showStatusMessage('Failed to change password.', true);
+                            }
+                        } else {
+                            passwordChangeMessage.textContent = 'No user is signed in.';
+                            passwordChangeMessage.classList.remove('hidden');
+                            passwordChangeMessage.classList.remove('text-green-600');
+                            passwordChangeMessage.classList.add('text-red-600');
+                        }
+                    });
+                }
+                if (deleteAccountBtn) {
+                    deleteAccountBtn.addEventListener('click', async () => {
+                        const user = firebaseAuth.currentUser;
+                        if (user) {
+                            // In a real app, you'd show a custom confirmation modal here.
+                            // For this example, we'll use a simple confirm.
+                            const confirmDelete = window.confirm("Are you sure you want to delete your account? This action is irreversible and will delete all your data.");
+                            if (confirmDelete) {
+                                try {
+                                    await firebase.deleteUser(user);
+                                    showStatusMessage('Account deleted successfully. You have been signed out.', false);
+                                    // onAuthStateChanged will handle UI redirection to auth modal
+                                } catch (error) {
+                                    showStatusMessage(`Failed to delete account: ${error.message}. You might need to re-authenticate if you recently signed in.`, true);
+                                    console.error('Account deletion error:', error);
+                                }
+                            }
+                        } else {
+                            showStatusMessage('No user is signed in to delete.', true);
                         }
                     });
                 }
