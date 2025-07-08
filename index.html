@@ -225,18 +225,15 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- AI Insights Button with Notification Badge -->
-                    <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105">
-                        AI Insights
+                    <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" aria-label="AI Insights">
+                        🤖 AI Insights
                         <span id="notification-badge" class="notification-badge hidden">0</span>
                     </button>
                     <!-- Account Management Button -->
-                    <button id="account-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden">
-                        Account
+                    <button id="account-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden" aria-label="Account Management">
+                        👤 Account
                     </button>
-                    <!-- Sign Out Button -->
-                    <button id="sign-out-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden">
-                        Sign Out
-                    </button>
+                    <!-- Sign Out Button Removed from here -->
                 </div>
             </div>
         </header>
@@ -575,6 +572,9 @@
 
             <div class="border-t pt-4 mt-4">
                 <h3 class="text-xl font-semibold text-gray-800 mb-4">Account Actions</h3>
+                <button id="sign-out-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-3">
+                    Sign Out
+                </button>
                 <button id="delete-account-btn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full">
                     Delete My Account
                 </button>
@@ -634,7 +634,7 @@
             // If running locally, you would uncomment and populate firebaseConfig here:
 
             firebaseConfig = {
-                apiKey: "AIzaSyAjkdj5aw4l81IYv_2OmT2_cUuizeK9hAw",
+                apiKey: "AIzaSyDpHZhUY87R6ZMm6H-QRRSMXKae8_-Nti0", // Provided by user
                 authDomain: "chiefeditors-c8fe2.firebaseapp.com",
                 projectId: "chiefeditors-c8fe2",
                 storageBucket: "chiefeditors-c8fe2.firebasestorage.app",
@@ -737,7 +737,7 @@
                         // Hide auth modal and show dashboard
                         authModalOverlay.classList.remove('show');
                         dashboardContent.classList.remove('hidden');
-                        signOutBtn.classList.remove('hidden');
+                        // signOutBtn.classList.remove('hidden'); // Removed separate sign out button
                         accountBtn.classList.remove('hidden'); // Show account button
 
                         // Populate account modal with user info
@@ -763,7 +763,7 @@
                         // Show auth modal and hide dashboard
                         authModalOverlay.classList.add('show');
                         dashboardContent.classList.add('hidden');
-                        signOutBtn.classList.add('hidden');
+                        // signOutBtn.classList.add('hidden'); // Removed separate sign out button
                         accountBtn.classList.add('hidden'); // Hide account button
                         setFormEnabled(false); // Disable forms until authenticated
                         // Clear any previous listeners if the user somehow signed out
@@ -843,7 +843,7 @@
         let projectStatusNoDataMessage; // New: No data message for project status chart
 
         let dashboardContent; // Main dashboard content div
-        let signOutBtn; // Sign Out button
+        let signOutBtn; // Sign Out button (now inside account modal)
         let accountBtn; // Account Management button
 
         // Gemini Modal Elements
@@ -1985,7 +1985,7 @@
                 projectStatusNoDataMessage = document.getElementById('project-status-no-data-message'); // Get the new message
 
                 dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
-                signOutBtn = document.getElementById('sign-out-btn'); // Get the sign out button
+                // signOutBtn = document.getElementById('sign-out-btn'); // Removed from here
                 accountBtn = document.getElementById('account-btn'); // Get the account button
 
                 aiInsightsBtn = document.getElementById('ai-insights-btn');
@@ -2025,6 +2025,7 @@
                 changePasswordBtn = document.getElementById('change-password-btn');
                 passwordChangeMessage = document.getElementById('password-change-message');
                 deleteAccountBtn = document.getElementById('delete-account-btn');
+                signOutBtn = document.getElementById('sign-out-btn'); // Re-initialized here for the account modal
 
 
                 if (prevWeekBtn) prevWeekBtn.addEventListener('click', () => { currentWeekStart = subWeeks(currentWeekStart, 1); renderWeeklySummary(); });
@@ -2336,12 +2337,14 @@
                     });
                 }
 
+                // Sign Out button is now inside the account modal
                 if (signOutBtn) {
                     signOutBtn.addEventListener('click', async () => {
                         try {
                             await firebase.signOut(firebaseAuth);
                             showStatusMessage('Signed out successfully!', false);
                             // UI update handled by onAuthStateChanged
+                            accountModalOverlay.classList.remove('show'); // Close account modal on sign out
                         } catch (error) {
                             showStatusMessage('Failed to sign out.', true);
                             console.error('Sign out error:', error);
@@ -2355,6 +2358,10 @@
                         signInForm.classList.remove('hidden');
                         signUpForm.classList.add('hidden');
                         authModalTitle.textContent = 'Sign In';
+                        authEmailInput.value = ''; // Clear email on switch
+                        authPasswordInput.value = ''; // Clear password on switch
+                        signupEmailInput.value = ''; // Clear signup email on switch
+                        signupPasswordInput.value = ''; // Clear signup password on switch
                         authErrorMessage.classList.add('hidden'); // Clear errors on switch
                         signupErrorMessage.classList.add('hidden');
                     });
@@ -2364,6 +2371,10 @@
                         signInForm.classList.add('hidden');
                         signUpForm.classList.remove('hidden');
                         authModalTitle.textContent = 'Sign Up';
+                        authEmailInput.value = ''; // Clear email on switch
+                        authPasswordInput.value = ''; // Clear password on switch
+                        signupEmailInput.value = ''; // Clear signup email on switch
+                        signupPasswordInput.value = ''; // Clear signup password on switch
                         authErrorMessage.classList.add('hidden'); // Clear errors on switch
                         signupErrorMessage.classList.add('hidden');
                     });
@@ -2389,15 +2400,18 @@
                         const newPassword = newPasswordInput.value;
                         const confirmPassword = confirmPasswordInput.value;
                         passwordChangeMessage.classList.add('hidden');
+                        passwordChangeMessage.classList.remove('text-green-600', 'text-red-600'); // Reset colors
 
                         if (newPassword !== confirmPassword) {
                             passwordChangeMessage.textContent = 'Passwords do not match.';
                             passwordChangeMessage.classList.remove('hidden');
+                            passwordChangeMessage.classList.add('text-red-600');
                             return;
                         }
                         if (newPassword.length < 6) {
                             passwordChangeMessage.textContent = 'Password must be at least 6 characters long.';
                             passwordChangeMessage.classList.remove('hidden');
+                            passwordChangeMessage.classList.add('text-red-600');
                             return;
                         }
 
@@ -2407,7 +2421,6 @@
                                 await firebase.updatePassword(user, newPassword);
                                 passwordChangeMessage.textContent = 'Password updated successfully!';
                                 passwordChangeMessage.classList.remove('hidden');
-                                passwordChangeMessage.classList.remove('text-red-600');
                                 passwordChangeMessage.classList.add('text-green-600');
                                 newPasswordInput.value = '';
                                 confirmPasswordInput.value = '';
@@ -2415,7 +2428,6 @@
                             } catch (error) {
                                 passwordChangeMessage.textContent = `Error changing password: ${error.message}`;
                                 passwordChangeMessage.classList.remove('hidden');
-                                passwordChangeMessage.classList.remove('text-green-600');
                                 passwordChangeMessage.classList.add('text-red-600');
                                 console.error('Password change error:', error);
                                 showStatusMessage('Failed to change password.', true);
@@ -2423,7 +2435,6 @@
                         } else {
                             passwordChangeMessage.textContent = 'No user is signed in.';
                             passwordChangeMessage.classList.remove('hidden');
-                            passwordChangeMessage.classList.remove('text-green-600');
                             passwordChangeMessage.classList.add('text-red-600');
                         }
                     });
@@ -2439,6 +2450,7 @@
                                 try {
                                     await firebase.deleteUser(user);
                                     showStatusMessage('Account deleted successfully. You have been signed out.', false);
+                                    accountModalOverlay.classList.remove('show'); // Close account modal on deletion
                                     // onAuthStateChanged will handle UI redirection to auth modal
                                 } catch (error) {
                                     showStatusMessage(`Failed to delete account: ${error.message}. You might need to re-authenticate if you recently signed in.`, true);
