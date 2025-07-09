@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChiefEditors Dashboard</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
     <!-- Tailwind CSS CDN for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts for Inter -->
@@ -15,6 +17,10 @@
             -moz-osx-font-smoothing: grayscale;
             background-color: #e5e7eb; /* Slightly darker gray background */
             padding-top: 96px; /* Add padding to body to prevent content from being hidden by fixed header */
+        }
+        /* New style to prevent scrolling when modal is open */
+        body.modal-open {
+            overflow: hidden;
         }
         /* Custom styles for better aesthetics and responsiveness */
         .container {
@@ -227,13 +233,13 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- AI Insights Button with Notification Badge -->
-                    <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" aria-label="AI Insights">
-                        🤖 AI Insights
+                    <button id="ai-insights-btn" class="relative py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" aria-label="AI Insights">
+                        🤖
                         <span id="notification-badge" class="notification-badge hidden">0</span>
                     </button>
                     <!-- Account Management Button -->
-                    <button id="account-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden" aria-label="Account Management">
-                        👤 Account
+                    <button id="account-btn" class="py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden" aria-label="Account Management">
+                        👤
                     </button>
                     <!-- Sign Out Button Removed from here -->
                 </div>
@@ -720,6 +726,15 @@
             console.log(`[setFormEnabled] timeDateInput.disabled: ${timeDateInput?.disabled}`);
         }
 
+        // Function to add/remove modal-open class on body
+        function setBodyScroll(enableScroll) {
+            if (enableScroll) {
+                document.body.classList.remove('modal-open');
+            } else {
+                document.body.classList.add('modal-open');
+            }
+        }
+
         // --- Firebase Initialization and Authentication ---
         const initializeFirebaseAndAuth = async () => {
             console.log("[initializeFirebaseAndAuth] Initializing Firebase...");
@@ -745,6 +760,7 @@
                         console.log("[onAuthStateChanged] User is signed in:", user.email, userId);
                         // Hide auth modal and show dashboard
                         authModalOverlay.classList.remove('show');
+                        setBodyScroll(true); // Enable scrolling
                         dashboardContent.classList.remove('hidden');
                         accountBtn.classList.remove('hidden'); // Show account button
 
@@ -753,13 +769,6 @@
                         if (currentUserUidP) currentUserUidP.textContent = `UID: ${user.uid}`;
                         
                         // The password change section is now always visible, no need to hide/show based on provider
-                        // if (passwordChangeSection) {
-                        //     if (user.providerData.some(provider => provider.providerId === 'password')) {
-                        //         passwordChangeSection.classList.remove('hidden');
-                        //     } else {
-                        //         passwordChangeSection.classList.add('hidden');
-                        //     }
-                        // }
 
                         // Now that we have a userId, set up real-time listeners
                         setupFirestoreListeners();
@@ -770,6 +779,7 @@
                         userId = null; // Ensure userId is null if no user
                         // Show auth modal and hide dashboard
                         authModalOverlay.classList.add('show');
+                        setBodyScroll(false); // Disable scrolling
                         dashboardContent.classList.add('hidden');
                         accountBtn.classList.add('hidden'); // Hide account button
                         setFormEnabled(false); // Disable forms until authenticated
@@ -2269,6 +2279,7 @@
                 if (aiInsightsBtn) {
                     aiInsightsBtn.addEventListener('click', () => {
                         geminiModalOverlay.classList.add('show');
+                        setBodyScroll(false); // Disable scrolling
                         // Display approaching deadlines immediately on modal open
                         displayApproachingDeadlinesInModal();
                         geminiLoadingSpinner.classList.add('hidden');
@@ -2278,6 +2289,16 @@
                 if (geminiModalCloseBtn) {
                     geminiModalCloseBtn.addEventListener('click', () => {
                         geminiModalOverlay.classList.remove('show');
+                        setBodyScroll(true); // Enable scrolling
+                    });
+                }
+                // Close Gemini modal on outside click
+                if (geminiModalOverlay) {
+                    geminiModalOverlay.addEventListener('click', (e) => {
+                        if (e.target === geminiModalOverlay) {
+                            geminiModalOverlay.classList.remove('show');
+                            setBodyScroll(true); // Enable scrolling
+                        }
                     });
                 }
                 if (getInsightsBtn) {
@@ -2353,6 +2374,7 @@
                             showStatusMessage('Signed out successfully!', false);
                             // UI update handled by onAuthStateChanged
                             accountModalOverlay.classList.remove('show'); // Close account modal on sign out
+                            setBodyScroll(true); // Enable scrolling
                         } catch (error) {
                             showStatusMessage('Failed to sign out.', true);
                             console.error('Sign out error:', error);
@@ -2422,14 +2444,28 @@
                 if (accountBtn) {
                     accountBtn.addEventListener('click', () => {
                         accountModalOverlay.classList.add('show');
+                        setBodyScroll(false); // Disable scrolling
                     });
                 }
                 if (accountModalCloseBtn) {
                     accountModalCloseBtn.addEventListener('click', () => {
                         accountModalOverlay.classList.remove('show');
+                        setBodyScroll(true); // Enable scrolling
                         passwordChangeMessage.classList.add('hidden'); // Clear message on close
                         newPasswordInput.value = '';
                         confirmPasswordInput.value = '';
+                    });
+                }
+                // Close Account modal on outside click
+                if (accountModalOverlay) {
+                    accountModalOverlay.addEventListener('click', (e) => {
+                        if (e.target === accountModalOverlay) {
+                            accountModalOverlay.classList.remove('show');
+                            setBodyScroll(true); // Enable scrolling
+                            passwordChangeMessage.classList.add('hidden'); // Clear message on close
+                            newPasswordInput.value = '';
+                            confirmPasswordInput.value = '';
+                        }
                     });
                 }
                 if (changePasswordBtn) {
@@ -2492,6 +2528,7 @@
                                     await firebase.deleteUser(user);
                                     showStatusMessage('Account deleted successfully. You have been signed out.', false);
                                     accountModalOverlay.classList.remove('show'); // Close account modal on deletion
+                                    setBodyScroll(true); // Enable scrolling
                                     // onAuthStateChanged will handle UI redirection to auth modal
                                 } catch (error) {
                                     showStatusMessage(`Failed to delete account: ${error.message}. You might need to re-authenticate if you recently signed in.`, true);
