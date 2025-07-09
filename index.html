@@ -180,7 +180,8 @@
             signInWithPopup, // Added for Google Sign-In
             signOut, // Added for sign out
             updatePassword, // Added for password change
-            deleteUser // Added for account deletion
+            deleteUser, // Added for account deletion
+            sendPasswordResetEmail // Added for forgot password
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; // Import Timestamp
@@ -199,6 +200,7 @@
             signOut, // Expose
             updatePassword, // Expose
             deleteUser, // Expose
+            sendPasswordResetEmail, // Expose
             getFirestore,
             collection,
             getDocs,
@@ -225,13 +227,13 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     <!-- AI Insights Button with Notification Badge -->
-                    <button id="ai-insights-btn" class="relative font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" aria-label="AI Insights">
-                        🤖
+                    <button id="ai-insights-btn" class="relative bg-purple-600 hover:bg-purple-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105" aria-label="AI Insights">
+                        🤖 AI Insights
                         <span id="notification-badge" class="notification-badge hidden">0</span>
                     </button>
                     <!-- Account Management Button -->
-                    <button id="account-btn" class="font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden" aria-label="Account Management">
-                        👤
+                    <button id="account-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 hidden" aria-label="Account Management">
+                        👤 Account
                     </button>
                     <!-- Sign Out Button Removed from here -->
                 </div>
@@ -503,6 +505,9 @@
                 <button id="auth-sign-in-email-btn" class="bg-blue-600 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full mb-3">
                     Sign In with Email
                 </button>
+                <button id="forgot-password-btn" class="text-sm text-blue-600 hover:text-blue-800 mt-2 block w-full text-center">
+                    Forgot Password?
+                </button>
             </div>
 
             <!-- Sign Up Form (Initially Hidden) -->
@@ -554,8 +559,12 @@
                 <p id="current-user-uid" class="text-xs text-gray-500 break-words"></p>
             </div>
 
-            <div id="password-change-section" class="border-t pt-4 mt-4 hidden">
-                <h3 class="text-xl font-semibold text-gray-800 mb-4">Change Password</h3>
+            <div id="password-change-section" class="border-t pt-4 mt-4"> <!-- Removed 'hidden' class -->
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Set/Change Password</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Use this to set a password for your account (if you signed in with Google) or change your existing password.
+                    You might need to re-authenticate if you haven't signed in recently.
+                </p>
                 <div class="mb-4">
                     <label for="new-password" class="sr-only">New Password</label>
                     <input type="password" id="new-password" placeholder="New Password" class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition duration-200 mb-3" required>
@@ -566,7 +575,7 @@
                 </div>
                 <div id="password-change-message" class="text-red-600 text-sm mb-4 hidden"></div>
                 <button id="change-password-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 w-full">
-                    Change Password
+                    Set/Change Password
                 </button>
             </div>
 
@@ -737,21 +746,20 @@
                         // Hide auth modal and show dashboard
                         authModalOverlay.classList.remove('show');
                         dashboardContent.classList.remove('hidden');
-                        // signOutBtn.classList.remove('hidden'); // Removed separate sign out button
                         accountBtn.classList.remove('hidden'); // Show account button
 
                         // Populate account modal with user info
                         if (currentUserEmailP) currentUserEmailP.textContent = user.email || 'N/A';
                         if (currentUserUidP) currentUserUidP.textContent = `UID: ${user.uid}`;
                         
-                        // Show password change section only for email/password users
-                        if (passwordChangeSection) {
-                            if (user.providerData.some(provider => provider.providerId === 'password')) {
-                                passwordChangeSection.classList.remove('hidden');
-                            } else {
-                                passwordChangeSection.classList.add('hidden');
-                            }
-                        }
+                        // The password change section is now always visible, no need to hide/show based on provider
+                        // if (passwordChangeSection) {
+                        //     if (user.providerData.some(provider => provider.providerId === 'password')) {
+                        //         passwordChangeSection.classList.remove('hidden');
+                        //     } else {
+                        //         passwordChangeSection.classList.add('hidden');
+                        //     }
+                        // }
 
                         // Now that we have a userId, set up real-time listeners
                         setupFirestoreListeners();
@@ -763,7 +771,6 @@
                         // Show auth modal and hide dashboard
                         authModalOverlay.classList.add('show');
                         dashboardContent.classList.add('hidden');
-                        // signOutBtn.classList.add('hidden'); // Removed separate sign out button
                         accountBtn.classList.add('hidden'); // Hide account button
                         setFormEnabled(false); // Disable forms until authenticated
                         // Clear any previous listeners if the user somehow signed out
@@ -872,6 +879,7 @@
         let signupErrorMessage; // For sign-up form
         let showSigninBtn;
         let showSignupBtn;
+        let forgotPasswordBtn; // New: Forgot password button
 
         // Account Management Modal Elements
         let accountModalOverlay;
@@ -1779,7 +1787,7 @@
             geminiAnalysisText.textContent = 'Generating insights...';
             getInsightsBtn.disabled = true;
 
-            const apiKey = "AIzaSyDpHZhUY87R6ZMm6H-QRRSMXKae8_-Nti0"; // Canvas will automatically provide this at runtime
+            const apiKey = ""; // Canvas will automatically provide this at runtime
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             const currentWeekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
@@ -1985,7 +1993,6 @@
                 projectStatusNoDataMessage = document.getElementById('project-status-no-data-message'); // Get the new message
 
                 dashboardContent = document.getElementById('dashboard-content'); // Get the main dashboard content div
-                // signOutBtn = document.getElementById('sign-out-btn'); // Removed from here
                 accountBtn = document.getElementById('account-btn'); // Get the account button
 
                 aiInsightsBtn = document.getElementById('ai-insights-btn');
@@ -2013,6 +2020,7 @@
                 signupErrorMessage = document.getElementById('signup-error-message');
                 showSigninBtn = document.getElementById('show-signin-btn');
                 showSignupBtn = document.getElementById('show-signup-btn');
+                forgotPasswordBtn = document.getElementById('forgot-password-btn'); // Initialize new button
 
                 // Account Management Modal Elements
                 accountModalOverlay = document.getElementById('account-modal-overlay');
@@ -2380,6 +2388,35 @@
                     });
                 }
 
+                // Forgot Password functionality
+                if (forgotPasswordBtn) {
+                    forgotPasswordBtn.addEventListener('click', async () => {
+                        const email = authEmailInput.value.trim();
+                        if (email) {
+                            try {
+                                await firebase.sendPasswordResetEmail(firebaseAuth, email);
+                                authErrorMessage.classList.remove('text-red-600');
+                                authErrorMessage.classList.add('text-green-600');
+                                authErrorMessage.textContent = 'Password reset email sent! Check your inbox.';
+                                authErrorMessage.classList.remove('hidden');
+                                showStatusMessage('Password reset email sent!', false);
+                            } catch (error) {
+                                authErrorMessage.classList.remove('text-green-600');
+                                authErrorMessage.classList.add('text-red-600');
+                                authErrorMessage.textContent = `Error sending reset email: ${error.message}`;
+                                authErrorMessage.classList.remove('hidden');
+                                console.error('Forgot password error:', error);
+                                showStatusMessage('Failed to send password reset email.', true);
+                            }
+                        } else {
+                            authErrorMessage.classList.remove('text-green-600');
+                            authErrorMessage.classList.add('text-red-600');
+                            authErrorMessage.textContent = 'Please enter your email to reset password.';
+                            authErrorMessage.classList.remove('hidden');
+                        }
+                    });
+                }
+
 
                 // --- Account Management Event Listeners ---
                 if (accountBtn) {
@@ -2426,7 +2463,11 @@
                                 confirmPasswordInput.value = '';
                                 showStatusMessage('Password updated successfully!', false);
                             } catch (error) {
-                                passwordChangeMessage.textContent = `Error changing password: ${error.message}`;
+                                let errorMessage = `Error changing password: ${error.message}`;
+                                if (error.code === 'auth/requires-recent-login') {
+                                    errorMessage = 'For security, please sign in again to change your password.';
+                                }
+                                passwordChangeMessage.textContent = errorMessage;
                                 passwordChangeMessage.classList.remove('hidden');
                                 passwordChangeMessage.classList.add('text-red-600');
                                 console.error('Password change error:', error);
